@@ -28,7 +28,6 @@ const AIAnalysisPanel: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {/* Selector */}
       <div className="bg-white p-4 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-3">
         <div>
           <h3 className="font-extrabold text-sm text-slate-900">Análisis Avanzado con IA</h3>
@@ -48,7 +47,6 @@ const AIAnalysisPanel: React.FC = () => {
 
       {selectedAudit ? (
         <div className="space-y-5">
-          {/* Resumen ejecutivo */}
           <div className="bg-slate-900 text-white rounded-xl overflow-hidden">
             <div className="bg-blue-900 p-5 flex justify-between items-center">
               <div>
@@ -69,15 +67,13 @@ const AIAnalysisPanel: React.FC = () => {
             <div className="p-5">
               <p className="font-bold text-blue-300 text-xs mb-1.5 uppercase">Resumen Ejecutivo</p>
               <p className="text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
-                {selectedAudit.aiAnalysis?.executiveSummary || `Auditoría realizada el ${selectedAudit.date} en ${selectedAudit.area}.
-Puntuación: ${selectedAudit.score}%.
-Riesgo detectado: ${risk}.
-${selectedAudit.hasCriticalFailures ? '⚠️ Se detectaron hallazgos críticos que requieren acción inmediata.' : 'No se detectaron desvíos críticos.'}`}
+                {selectedAudit.aiAnalysis?.executiveSummary || `Auditoría realizada el ${selectedAudit.date} en ${selectedAudit.area}. Puntuación: ${selectedAudit.score}%. `}
+                <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${riskColor}`}>Riesgo: {risk}</span>
+                {selectedAudit.hasCriticalFailures ? ' ⚠️ Se detectaron hallazgos críticos que requieren acción inmediata.' : ' No se detectaron desvíos críticos.'}
               </p>
             </div>
           </div>
 
-          {/* Análisis detallado */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white p-4 rounded-xl border shadow-sm">
               <h4 className="font-extrabold text-xs text-slate-500 uppercase mb-2 flex items-center gap-1.5">
@@ -97,7 +93,6 @@ ${selectedAudit.hasCriticalFailures ? '⚠️ Se detectaron hallazgos críticos 
             </div>
           </div>
 
-          {/* Plan de acciones */}
           {selectedAudit.aiAnalysis?.suggestedActionPlans && selectedAudit.aiAnalysis.suggestedActionPlans.length > 0 && (
             <div className="bg-white p-4 rounded-xl border shadow-sm">
               <h4 className="font-bold text-sm text-slate-900 border-b pb-1.5 mb-3 flex items-center gap-1.5">
