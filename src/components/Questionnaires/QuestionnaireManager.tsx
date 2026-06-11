@@ -37,16 +37,16 @@ const QuestionnaireManager: React.FC = () => {
                 <div
                   key={q.id}
                   className={`p-3 border rounded-xl flex justify-between items-center ${
-                    selectedId === q.id ? 'border-indigo-600 bg-indigo-50/10' : 'border-slate-200'
+                    selectedId === q.id ? 'border-blue-600 bg-blue-50/10' : 'border-slate-200'
                   }`}
                 >
                   <div>
                     <h4 className="font-black text-xs flex items-center gap-1.5">
-                      <FileSpreadsheet className="w-4 h-4 text-indigo-500" />
+                      <FileSpreadsheet className="w-4 h-4 text-blue-500" />
                       {q.name}
                     </h4>
                     <p className="text-[10px] text-slate-400">{q.description}</p>
-                    <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+                    <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mt-1 inline-block">
                       {q.items?.length || 0} preguntas
                     </span>
                   </div>
@@ -74,13 +74,13 @@ const QuestionnaireManager: React.FC = () => {
           <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-bold">
             <button
               onClick={() => setMode('excel')}
-              className={`w-1/2 py-1 rounded ${mode === 'excel' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+              className={`w-1/2 py-1 rounded ${mode === 'excel' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
             >
               Importar Excel
             </button>
             <button
               onClick={() => setMode('manual')}
-              className={`w-1/2 py-1 rounded ${mode === 'manual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+              className={`w-1/2 py-1 rounded ${mode === 'manual' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
             >
               Crear Manual
             </button>

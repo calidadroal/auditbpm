@@ -71,7 +71,7 @@ const SignatureCanvas: React.FC<SignatureCanvasProps> = ({ onSave, onCancel }) =
           <button onClick={clearCanvas} className="text-slate-400 underline">Limpiar</button>
           <div className="space-x-2">
             <button onClick={onCancel} className="px-3 py-1.5 bg-slate-100 rounded font-bold">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-1.5 bg-indigo-600 text-white rounded font-bold">Guardar</button>
+            <button onClick={handleSave} className="px-4 py-1.5 bg-blue-600 text-white rounded font-bold">Guardar</button>
           </div>
         </div>
       </div>

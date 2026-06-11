@@ -10,7 +10,7 @@ const Header: React.FC = () => {
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm px-4 py-3">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <div className="flex items-center space-x-2.5">
-          <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white">
             <ClipboardCheck className="w-5 h-5" />
           </div>
           <div>
@@ -20,9 +20,9 @@ const Header: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3 text-xs">
           {activeUser && (
-            <div onClick={() => setActiveTab('usuarios')} className="p-2 border rounded-lg bg-indigo-50 cursor-pointer">
+            <div onClick={() => setActiveTab('usuarios')} className="p-2 border rounded-lg bg-blue-50 cursor-pointer">
               <span className="font-bold text-slate-800 block">{activeUser.name}</span>
-              <span className="text-[9px] uppercase font-extrabold text-indigo-700">{activeUser.role}</span>
+              <span className="text-[9px] uppercase font-extrabold text-blue-700">{activeUser.role}</span>
             </div>
           )}
           <button onClick={() => setActiveTab('notificaciones')} className="relative p-2 rounded-full border bg-white">

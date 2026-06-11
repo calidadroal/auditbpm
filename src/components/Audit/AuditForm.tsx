@@ -152,7 +152,7 @@ const AuditForm: React.FC = () => {
             <select
               value={selectedQuestionnaireId}
               onChange={(e) => setSelectedQuestionnaireId(e.target.value)}
-              className="w-full text-xs rounded border border-indigo-200 h-9 p-2 mt-1 bg-white font-bold text-indigo-950"
+              className="w-full text-xs rounded border border-blue-200 h-9 p-2 mt-1 bg-white font-bold text-blue-950"
             >
               {questionnaires.map(q => (
                 <option key={q.id} value={q.id}>{q.name} ({q.items?.length || 0} items)</option>
@@ -163,9 +163,9 @@ const AuditForm: React.FC = () => {
       </div>
 
       {/* Score en vivo */}
-      <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
-        <span className="text-xs font-bold text-indigo-700">Cumplimiento parcial:</span>
-        <span className="text-lg font-black text-indigo-900">{currentScore}%</span>
+      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
+        <span className="text-xs font-bold text-blue-700">Cumplimiento parcial:</span>
+        <span className="text-lg font-black text-blue-900">{currentScore}%</span>
       </div>
 
       {/* Preguntas */}
@@ -198,7 +198,7 @@ const AuditForm: React.FC = () => {
             />
             <button
               onClick={() => setIsSigningOpen(true)}
-              className="px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded text-xs flex items-center gap-1.5"
+              className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 font-bold rounded text-xs flex items-center gap-1.5"
             >
               <Signature className="w-4 h-4" />
               Firmar digitalmente
@@ -229,7 +229,7 @@ const AuditForm: React.FC = () => {
         <button
           onClick={() => handleSubmit(false)}
           disabled={isSubmitting}
-          className="px-6 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded shadow-sm flex items-center gap-1.5 hover:bg-indigo-700"
+          className="px-6 py-2.5 bg-blue-600 text-white text-xs font-bold rounded shadow-sm flex items-center gap-1.5 hover:bg-blue-700"
         >
           <Sparkles className="w-4 h-4" />
           Enviar y Analizar con IA

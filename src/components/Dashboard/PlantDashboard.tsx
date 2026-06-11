@@ -34,7 +34,7 @@ const PlantDashboard: React.FC = () => {
               <span className="text-xs text-slate-400">{plant.total} auditorías</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-2 mt-2">
-              <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${plant.avgScore}%` }}></div>
+              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${plant.avgScore}%` }}></div>
             </div>
           </div>
         ))}

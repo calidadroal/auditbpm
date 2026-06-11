@@ -45,7 +45,7 @@ const UsersManager: React.FC = () => {
         {/* Lista de usuarios */}
         <div className="lg:col-span-2 bg-white p-4 rounded-xl border shadow-sm">
           <h3 className="font-extrabold text-slate-900 text-sm border-b pb-2 mb-3 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-indigo-600" />
+            <Shield className="w-4 h-4 text-blue-600" />
             Directorio del Personal
           </h3>
           {users.length === 0 ? (
@@ -58,13 +58,13 @@ const UsersManager: React.FC = () => {
                   onClick={() => handleSwitch(u)}
                   className={`p-4 rounded-lg border cursor-pointer transition-all ${
                     activeUser?.id === u.id
-                      ? 'border-indigo-600 bg-indigo-50/20'
+                      ? 'border-blue-600 bg-blue-50/20'
                       : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      u.role === 'auditor' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
+                      u.role === 'auditor' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
                     }`}>
                       <User className="w-4 h-4" />
                     </div>
@@ -76,13 +76,13 @@ const UsersManager: React.FC = () => {
                   <div className="flex items-center gap-2 mt-2">
                     <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
                       u.role === 'auditor'
-                        ? 'bg-indigo-100 text-indigo-700'
+                        ? 'bg-blue-100 text-blue-700'
                         : 'bg-slate-200 text-slate-600'
                     }`}>
                       {u.role === 'auditor' ? 'Auditor' : 'Lector'}
                     </span>
                     {activeUser?.id === u.id && (
-                      <span className="text-[8px] bg-indigo-600 text-white font-bold px-1.5 py-0.5 rounded">
+                      <span className="text-[8px] bg-blue-600 text-white font-bold px-1.5 py-0.5 rounded">
                         ACTIVO
                       </span>
                     )}
@@ -133,7 +133,7 @@ const UsersManager: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-2 bg-indigo-600 text-white font-bold rounded text-xs hover:bg-indigo-700 disabled:opacity-50"
+              className="w-full py-2 bg-blue-600 text-white font-bold rounded text-xs hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? 'Creando...' : 'Crear Usuario'}
             </button>

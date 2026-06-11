@@ -26,7 +26,7 @@ const TabBar: React.FC = () => {
               key={tb.id}
               onClick={() => setActiveTab(tb.id)}
               className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg border transition-all ${
-                isActive ? 'bg-indigo-600 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                isActive ? 'bg-blue-600 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
               <Icon className="w-4 h-4" />

@@ -70,7 +70,7 @@ const ManualCreator: React.FC = () => {
       <div className="border-t pt-2 space-y-2">
         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
           <span>Preguntas ({items.length})</span>
-          <button type="button" onClick={addItem} className="text-indigo-600 hover:underline flex items-center gap-1">
+          <button type="button" onClick={addItem} className="text-blue-600 hover:underline flex items-center gap-1">
             <Plus className="w-3 h-3" /> Añadir
           </button>
         </div>
@@ -124,7 +124,7 @@ const ManualCreator: React.FC = () => {
           ))}
         </div>
       </div>
-      <button type="submit" disabled={saving} className="w-full py-2 bg-indigo-600 text-white font-bold rounded text-xs">
+      <button type="submit" disabled={saving} className="w-full py-2 bg-blue-600 text-white font-bold rounded text-xs">
         {saving ? 'Guardando...' : 'Crear Cuestionario'}
       </button>
     </form>

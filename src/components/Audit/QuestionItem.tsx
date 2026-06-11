@@ -47,7 +47,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({
       <h4 className="text-xs md:text-sm font-bold text-slate-900 mb-2.5">{item.text}</h4>
 
       {showInfo && (
-        <div className="bg-indigo-50 p-3 rounded text-[11px] text-indigo-900 border border-indigo-100 mb-3">
+        <div className="bg-blue-50 p-3 rounded text-[11px] text-blue-900 border border-blue-100 mb-3">
           {item.description}
         </div>
       )}

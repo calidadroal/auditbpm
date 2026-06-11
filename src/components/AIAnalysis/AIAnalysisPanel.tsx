@@ -50,11 +50,11 @@ const AIAnalysisPanel: React.FC = () => {
         <div className="space-y-5">
           {/* Resumen ejecutivo */}
           <div className="bg-slate-900 text-white rounded-xl overflow-hidden">
-            <div className="bg-indigo-900 p-5 flex justify-between items-center">
+            <div className="bg-blue-900 p-5 flex justify-between items-center">
               <div>
-                <span className="bg-indigo-600 text-[10px] font-black px-2 py-0.5 rounded">DIAGNÓSTICO: {selectedAudit.area}</span>
+                <span className="bg-blue-600 text-[10px] font-black px-2 py-0.5 rounded">DIAGNÓSTICO: {selectedAudit.area}</span>
                 <h2 className="text-lg font-bold mt-1 flex items-center gap-1.5">
-                  <Bot className="w-5 h-5 text-indigo-300" /> Executive Insights AI
+                  <Bot className="w-5 h-5 text-blue-300" /> Executive Insights AI
                 </h2>
               </div>
               <button
@@ -67,7 +67,7 @@ const AIAnalysisPanel: React.FC = () => {
               </button>
             </div>
             <div className="p-5">
-              <p className="font-bold text-indigo-300 text-xs mb-1.5 uppercase">Resumen Ejecutivo</p>
+              <p className="font-bold text-blue-300 text-xs mb-1.5 uppercase">Resumen Ejecutivo</p>
               <p className="text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
                 {selectedAudit.aiAnalysis?.executiveSummary || `Auditoría realizada el ${selectedAudit.date} en ${selectedAudit.area}.
 Puntuación: ${selectedAudit.score}%.
@@ -81,7 +81,7 @@ ${selectedAudit.hasCriticalFailures ? '⚠️ Se detectaron hallazgos críticos 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white p-4 rounded-xl border shadow-sm">
               <h4 className="font-extrabold text-xs text-slate-500 uppercase mb-2 flex items-center gap-1.5">
-                <History className="w-4 h-4 text-indigo-600" /> Recurrencia de Fallos
+                <History className="w-4 h-4 text-blue-600" /> Recurrencia de Fallos
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed">
                 {selectedAudit.aiAnalysis?.recurrenceAnalysis || 'Sin datos de recurrencia. Ejecutá el análisis para obtener resultados.'}
@@ -89,7 +89,7 @@ ${selectedAudit.hasCriticalFailures ? '⚠️ Se detectaron hallazgos críticos 
             </div>
             <div className="bg-white p-4 rounded-xl border shadow-sm">
               <h4 className="font-extrabold text-xs text-slate-500 uppercase mb-2 flex items-center gap-1.5">
-                <Info className="w-4 h-4 text-indigo-600" /> Causa Raíz (5 Porqués)
+                <Info className="w-4 h-4 text-blue-600" /> Causa Raíz (5 Porqués)
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">
                 {selectedAudit.aiAnalysis?.rootCauseAnalysis || 'Sin análisis de causa raíz. Ejecutá el análisis para obtener resultados con metodología 5 Porqués.'}
@@ -101,7 +101,7 @@ ${selectedAudit.hasCriticalFailures ? '⚠️ Se detectaron hallazgos críticos 
           {selectedAudit.aiAnalysis?.suggestedActionPlans && selectedAudit.aiAnalysis.suggestedActionPlans.length > 0 && (
             <div className="bg-white p-4 rounded-xl border shadow-sm">
               <h4 className="font-bold text-sm text-slate-900 border-b pb-1.5 mb-3 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-indigo-600" /> Acciones Correctivas Sugeridas
+                <Sparkles className="w-4 h-4 text-blue-600" /> Acciones Correctivas Sugeridas
               </h4>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
@@ -120,7 +120,7 @@ ${selectedAudit.hasCriticalFailures ? '⚠️ Se detectaron hallazgos críticos 
                       <tr key={i} className="border-t">
                         <td className="p-2 font-bold">{plan.itemId}</td>
                         <td className="p-2">{plan.itemText}</td>
-                        <td className="p-2 text-indigo-700 font-bold">{plan.correctiveAction}</td>
+                        <td className="p-2 text-blue-700 font-bold">{plan.correctiveAction}</td>
                         <td className="p-2 text-emerald-700 font-bold">{plan.preventiveAction}</td>
                         <td className="p-2">{plan.responsible}</td>
                         <td className="p-2 text-center">

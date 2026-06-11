@@ -100,7 +100,7 @@ const ExcelImporter: React.FC = () => {
         <input type="file" accept=".xlsx,.xls" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
         <UploadCloud className="w-8 h-8 text-slate-400 mx-auto mb-1" />
         <span className="text-[11px] text-slate-500 block font-bold">Seleccionar archivo Excel</span>
-        {file && <span className="text-[10px] text-indigo-600 block mt-1.5">{file.name}</span>}
+        {file && <span className="text-[10px] text-blue-600 block mt-1.5">{file.name}</span>}
       </div>
 
       {questions.length > 0 && (
@@ -121,7 +121,7 @@ const ExcelImporter: React.FC = () => {
             className="w-full text-xs rounded border p-2 bg-white"
           />
           <p className="text-[10px] text-slate-400">{questions.length} preguntas detectadas</p>
-          <button type="submit" disabled={saving} className="w-full py-2 bg-indigo-600 text-white font-bold rounded text-xs">
+          <button type="submit" disabled={saving} className="w-full py-2 bg-blue-600 text-white font-bold rounded text-xs">
             {saving ? 'Guardando...' : `Importar ${questions.length} preguntas`}
           </button>
         </form>

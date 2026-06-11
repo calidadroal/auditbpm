@@ -34,7 +34,7 @@ const NotificationsPanel: React.FC = () => {
       {/* Lista */}
       <div className="bg-white p-4 rounded-xl border shadow-sm">
         <h3 className="font-extrabold text-slate-900 text-sm border-b pb-2 mb-3 flex items-center gap-2">
-          <Bell className="w-4 h-4 text-indigo-600" />
+          <Bell className="w-4 h-4 text-blue-600" />
           Buzón de Hallazgos Críticos
         </h3>
 
@@ -59,7 +59,7 @@ const NotificationsPanel: React.FC = () => {
                 </blockquote>
                 <button
                   onClick={() => handleMarkRead(n.id)}
-                  className="mt-2 px-3 py-1 bg-indigo-600 text-white font-bold text-[10px] rounded hover:bg-indigo-700"
+                  className="mt-2 px-3 py-1 bg-blue-600 text-white font-bold text-[10px] rounded hover:bg-blue-700"
                 >
                   Marcar como resuelto
                 </button>

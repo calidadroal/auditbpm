@@ -18,7 +18,7 @@ const SystemAnalysis: React.FC = () => {
                 <span>{val as number}%</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${val}%` }}></div>
+                <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${val}%` }}></div>
               </div>
             </div>
           ))}
