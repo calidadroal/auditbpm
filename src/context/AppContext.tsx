@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { AuditRecord, NotificationRecord, Site, Questionnaire, AppUser } from '../types/index';
+import { getAudits, getSites, getQuestionnaires, getUsers, getNotifications } from '../firebase';
 
 interface AppContextType {
   activeTab: string;
@@ -35,22 +36,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [auditsRes, notifRes, statsRes, sitesRes, questRes, usersRes] = await Promise.all([
-        fetch('/api/audits').then(r => r.json()),
-        fetch('/api/notifications').then(r => r.json()),
-        fetch('/api/stats').then(r => r.json()),
-        fetch('/api/sites').then(r => r.json()),
-        fetch('/api/questionnaires').then(r => r.json()),
-        fetch('/api/users').then(r => r.json())
+      const [auditsData, sitesData, questData, usersData, notifData] = await Promise.all([
+        getAudits(),
+        getSites(),
+        getQuestionnaires(),
+        getUsers(),
+        getNotifications()
       ]);
-      setAudits(auditsRes);
-      setNotifications(notifRes);
-      setStats(statsRes);
-      setSites(sitesRes);
-      setQuestionnaires(questRes);
-      setUsers(usersRes);
+      setAudits(auditsData as AuditRecord[]);
+      setSites(sitesData as Site[]);
+      setQuestionnaires(questData as Questionnaire[]);
+      setUsers(usersData as AppUser[]);
+      setNotifications(notifData as NotificationRecord[]);
+      
+      setStats({
+        totalAudits: auditsData.length,
+        averageScore: auditsData.length > 0 
+          ? Math.round((auditsData as AuditRecord[]).reduce((sum, a) => sum + (a.score || 0), 0) / auditsData.length) 
+          : 0,
+        standardsBreakdown: {}
+      });
+
       const storedId = localStorage.getItem('activeUserId');
-      const defaultUser = usersRes.find((u: any) => u.id === storedId) || usersRes[0];
+      const defaultUser = (usersData as AppUser[]).find(u => u.id === storedId) || (usersData as AppUser[])[0];
       if (defaultUser) setActiveUser(defaultUser);
     } catch (err) {
       console.error('Error cargando datos:', err);

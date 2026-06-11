@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Home } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { createSite } from '../../firebase';
 
 const SitesManager: React.FC = () => {
   const { sites, activeUser, refreshData } = useAppContext();
@@ -23,16 +24,12 @@ const SitesManager: React.FC = () => {
     }
     setIsSaving(true);
     try {
-      const res = await fetch('/api/sites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, description: newDesc, sectors: sectorsArr })
-      });
-      if (!res.ok) throw new Error('Error al guardar');
+      await createSite({ name: newName, description: newDesc, sectors: sectorsArr });
       setNewName('');
       setNewDesc('');
       setNewSectors('');
       await refreshData();
+      alert('Sitio creado con éxito');
     } catch (err: any) {
       alert('Error: ' + err.message);
     } finally {
@@ -45,7 +42,7 @@ const SitesManager: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white p-4 rounded-xl border shadow-sm">
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 border-b pb-2 mb-3">
-            <Home className="w-4 h-4 text-indigo-600" />
+            <Home className="w-4 h-4 text-blue-600" />
             Establecimientos
           </h3>
           {sites.length === 0 ? (
@@ -57,11 +54,11 @@ const SitesManager: React.FC = () => {
                   key={s.id}
                   onClick={() => setSelectedSite(s.id === selectedSite ? '' : s.id)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    selectedSite === s.id ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 hover:border-slate-300'
+                    selectedSite === s.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <h4 className="font-extrabold text-xs flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                    <MapPin className="w-3.5 h-3.5 text-blue-600" />
                     {s.name}
                   </h4>
                   <p className="text-[10px] text-slate-400 mt-0.5">{s.description}</p>
@@ -86,41 +83,17 @@ const SitesManager: React.FC = () => {
           <form onSubmit={handleCreateSite} className="space-y-3 text-xs">
             <div>
               <label className="font-bold text-slate-400">Nombre</label>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Ej: Planta San Miguel"
-                className="w-full rounded border border-slate-200 mt-1 h-9 p-2 bg-white"
-                required
-              />
+              <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej: Planta San Miguel" className="w-full rounded border border-slate-200 mt-1 h-9 p-2 bg-white" required />
             </div>
             <div>
               <label className="font-bold text-slate-400">Descripción</label>
-              <input
-                type="text"
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                placeholder="Planta principal de distribución"
-                className="w-full rounded border border-slate-200 mt-1 h-9 p-2 bg-white"
-              />
+              <input type="text" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Planta principal" className="w-full rounded border border-slate-200 mt-1 h-9 p-2 bg-white" />
             </div>
             <div>
               <label className="font-bold text-slate-400">Sectores (separados por coma)</label>
-              <input
-                type="text"
-                value={newSectors}
-                onChange={(e) => setNewSectors(e.target.value)}
-                placeholder="Cocina, Cámaras, Depósito"
-                className="w-full rounded border border-slate-200 mt-1 h-9 p-2 bg-white"
-                required
-              />
+              <input type="text" value={newSectors} onChange={(e) => setNewSectors(e.target.value)} placeholder="Cocina, Cámaras, Depósito" className="w-full rounded border border-slate-200 mt-1 h-9 p-2 bg-white" required />
             </div>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full py-2 bg-indigo-600 text-white font-bold rounded text-xs hover:bg-indigo-700 disabled:opacity-50"
-            >
+            <button type="submit" disabled={isSaving} className="w-full py-2 bg-blue-600 text-white font-bold rounded text-xs hover:bg-blue-700 disabled:opacity-50">
               {isSaving ? 'Guardando...' : 'Registrar Sitio'}
             </button>
           </form>

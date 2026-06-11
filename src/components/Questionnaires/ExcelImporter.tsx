@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { UploadCloud, Download } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { createQuestionnaire } from '../../firebase';
 
 const ExcelImporter: React.FC = () => {
   const { refreshData } = useAppContext();
@@ -56,16 +57,8 @@ const ExcelImporter: React.FC = () => {
     if (!name.trim() || questions.length === 0) return alert('Cargá el Excel primero');
     setSaving(true);
     try {
-      const res = await fetch('/api/questionnaires', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description: desc, items: questions })
-      });
-      if (!res.ok) throw new Error('Error al guardar');
-      setName('');
-      setDesc('');
-      setQuestions([]);
-      setFile(null);
+      await createQuestionnaire({ name, description: desc, items: questions, isCustom: true });
+      setName(''); setDesc(''); setQuestions([]); setFile(null);
       await refreshData();
       alert('Cuestionario importado con éxito');
     } catch (err: any) {
@@ -78,9 +71,8 @@ const ExcelImporter: React.FC = () => {
   const downloadTemplate = () => {
     const sample = [
       ['Pregunta', 'Instruccion', 'Normativa', 'Rubro', 'Critico'],
-      ['¿Está limpia la cocina?', 'Inspección visual de pisos y paredes', 'IRAM 14201', 'Higiene', 'SI'],
-      ['¿Usan cofia y barbijo?', 'Verificar uso de EPP', 'IRAM 14201', 'Personal', 'NO'],
-      ['¿Hay matafuegos visibles?', 'Control de seguridad', 'ISO 45001', 'Seguridad', 'SI']
+      ['¿Está limpia la cocina?', 'Inspección visual', 'IRAM 14201', 'Higiene', 'SI'],
+      ['¿Usan cofia y barbijo?', 'Verificar EPP', 'IRAM 14201', 'Personal', 'NO']
     ];
     const ws = XLSX.utils.aoa_to_sheet(sample);
     const wb = XLSX.utils.book_new();
@@ -90,36 +82,20 @@ const ExcelImporter: React.FC = () => {
 
   return (
     <div className="space-y-3.5">
-      <p className="text-[11px] text-slate-400">Importá preguntas desde un archivo Excel (.xlsx)</p>
+      <p className="text-[11px] text-slate-400">Importá preguntas desde un Excel</p>
       <button onClick={downloadTemplate} className="text-[11px] underline font-bold text-emerald-700 flex items-center gap-1">
-        <Download className="w-3.5 h-3.5" />
-        Descargar plantilla modelo
+        <Download className="w-3.5 h-3.5" /> Descargar plantilla
       </button>
-
       <div className="border border-dashed p-5 text-center rounded bg-slate-50 relative">
         <input type="file" accept=".xlsx,.xls" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
         <UploadCloud className="w-8 h-8 text-slate-400 mx-auto mb-1" />
-        <span className="text-[11px] text-slate-500 block font-bold">Seleccionar archivo Excel</span>
+        <span className="text-[11px] text-slate-500 block font-bold">Seleccionar Excel</span>
         {file && <span className="text-[10px] text-blue-600 block mt-1.5">{file.name}</span>}
       </div>
-
       {questions.length > 0 && (
         <form onSubmit={handleSave} className="space-y-3 border-t pt-3">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nombre del cuestionario"
-            className="w-full text-xs rounded border p-2 bg-white"
-            required
-          />
-          <input
-            type="text"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="Descripción"
-            className="w-full text-xs rounded border p-2 bg-white"
-          />
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del cuestionario" className="w-full text-xs rounded border p-2 bg-white" required />
+          <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Descripción" className="w-full text-xs rounded border p-2 bg-white" />
           <p className="text-[10px] text-slate-400">{questions.length} preguntas detectadas</p>
           <button type="submit" disabled={saving} className="w-full py-2 bg-blue-600 text-white font-bold rounded text-xs">
             {saving ? 'Guardando...' : `Importar ${questions.length} preguntas`}

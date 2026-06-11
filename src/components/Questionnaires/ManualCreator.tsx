@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { createQuestionnaire } from '../../firebase';
 
 const ManualCreator: React.FC = () => {
   const { refreshData } = useAppContext();
@@ -31,14 +32,12 @@ const ManualCreator: React.FC = () => {
     if (!name.trim() || valid.length === 0) return alert('Completá nombre y al menos una pregunta');
     setSaving(true);
     try {
-      const res = await fetch('/api/questionnaires', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description: desc, items: valid })
-      });
-      if (!res.ok) throw new Error('Error al guardar');
-      setName('');
-      setDesc('');
+      const itemsWithIds = valid.map((item, i) => ({
+        ...item,
+        id: `manual-${Date.now()}-${i}`
+      }));
+      await createQuestionnaire({ name, description: desc, items: itemsWithIds, isCustom: true });
+      setName(''); setDesc('');
       setItems([{ text: '', description: '', standard: 'IRAM 14201', category: 'Inspección', critical: false }]);
       await refreshData();
       alert('Cuestionario creado con éxito');
@@ -51,73 +50,31 @@ const ManualCreator: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nombre del cuestionario"
-        className="w-full rounded border p-2 bg-white"
-        required
-      />
-      <input
-        type="text"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-        placeholder="Objetivos generales"
-        className="w-full rounded border p-2 bg-white"
-      />
-
+      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del cuestionario" className="w-full rounded border p-2 bg-white" required />
+      <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Objetivos generales" className="w-full rounded border p-2 bg-white" />
       <div className="border-t pt-2 space-y-2">
         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
           <span>Preguntas ({items.length})</span>
-          <button type="button" onClick={addItem} className="text-blue-600 hover:underline flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Añadir
-          </button>
+          <button type="button" onClick={addItem} className="text-blue-600 hover:underline flex items-center gap-1"><Plus className="w-3 h-3" /> Añadir</button>
         </div>
-
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {items.map((item, idx) => (
             <div key={idx} className="p-2 border rounded bg-slate-50 space-y-1 text-[11px]">
               <div className="flex justify-between text-[9px] text-slate-400">
                 <span>Pregunta #{idx + 1}</span>
-                <button type="button" onClick={() => removeItem(idx)} className="text-red-500 hover:underline flex items-center gap-0.5">
-                  <Trash2 className="w-3 h-3" /> Quitar
-                </button>
+                <button type="button" onClick={() => removeItem(idx)} className="text-red-500 hover:underline flex items-center gap-0.5"><Trash2 className="w-3 h-3" /> Quitar</button>
               </div>
-              <input
-                type="text"
-                value={item.text}
-                onChange={(e) => updateItem(idx, 'text', e.target.value)}
-                placeholder="Ej: ¿El personal usa cofia?"
-                className="w-full rounded border p-1 bg-white"
-                required
-              />
-              <input
-                type="text"
-                value={item.description}
-                onChange={(e) => updateItem(idx, 'description', e.target.value)}
-                placeholder="Instrucción de control"
-                className="w-full rounded border p-1 bg-white"
-              />
+              <input type="text" value={item.text} onChange={(e) => updateItem(idx, 'text', e.target.value)} placeholder="Ej: ¿El personal usa cofia?" className="w-full rounded border p-1 bg-white" required />
+              <input type="text" value={item.description} onChange={(e) => updateItem(idx, 'description', e.target.value)} placeholder="Instrucción de control" className="w-full rounded border p-1 bg-white" />
               <div className="flex gap-2">
-                <select
-                  value={item.standard}
-                  onChange={(e) => updateItem(idx, 'standard', e.target.value)}
-                  className="rounded border p-1 bg-white text-[10px] flex-1"
-                >
+                <select value={item.standard} onChange={(e) => updateItem(idx, 'standard', e.target.value)} className="rounded border p-1 bg-white text-[10px] flex-1">
                   <option>IRAM 14201</option>
                   <option>IRAM 14301</option>
                   <option>ISO 9001</option>
                   <option>ISO 45001</option>
                 </select>
                 <label className="flex items-center gap-1 text-[10px] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={item.critical}
-                    onChange={(e) => updateItem(idx, 'critical', e.target.checked)}
-                    className="rounded"
-                  />
-                  ¿Crítico?
+                  <input type="checkbox" checked={item.critical} onChange={(e) => updateItem(idx, 'critical', e.target.checked)} className="rounded" /> ¿Crítico?
                 </label>
               </div>
             </div>
