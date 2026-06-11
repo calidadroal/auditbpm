@@ -96,35 +96,38 @@ const AuditForm: React.FC = () => {
         signatureName: signatureName || null,
         hasCriticalFailures: hasCriticalNC()
       };
-      
+
       const saved = await createAudit(payload);
-      
+
       if (!isDraft) {
-        // Disparar análisis con IA
         try {
           const analysis = await analyzeAuditWithGemini({ ...payload, id: saved.id });
-          await updateDoc(doc(db, 'audits', saved.id), { aiAnalysis: analysis });
-          
-          if (analysis.riskLevel === 'Alto') {
-            await addDoc(collection(db, 'notifications'), {
-              date: new Date().toISOString().split('T')[0],
-              area: selectedSector,
-              auditorName,
-              itemName: 'Hallazgo crítico detectado',
-              comment: `Riesgo ${analysis.riskLevel}. ${analysis.executiveSummary?.substring(0, 100)}...`,
-              read: false
-            });
-            alert('⚠️ Se detectaron hallazgos críticos. Se generó una notificación.');
+          if (analysis) {
+            await updateDoc(doc(db, 'audits', saved.id), { aiAnalysis: analysis });
+
+            if (analysis.riskLevel === 'Alto') {
+              await addDoc(collection(db, 'notifications'), {
+                date: new Date().toISOString().split('T')[0],
+                area: selectedSector,
+                auditorName,
+                itemName: 'Hallazgo crítico detectado',
+                comment: `Riesgo ${analysis.riskLevel}. ${analysis.executiveSummary?.substring(0, 100)}...`,
+                read: false
+              });
+              alert('⚠️ Se detectaron hallazgos críticos. Se generó una notificación.');
+            }
+          } else {
+            alert('⚠️ La auditoría se guardó pero el análisis con IA no pudo completarse. Reintentá desde Informe IA.');
           }
         } catch (err) {
           console.error('Error en análisis IA:', err);
         }
-        
+
         setAnswers({});
         setTempSignature(null);
         setSignatureName('');
       }
-      
+
       await refreshData();
       alert(isDraft ? 'Borrador guardado' : 'Auditoría enviada y analizada con IA');
     } catch (err: any) {
