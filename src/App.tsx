@@ -6,6 +6,12 @@ import GlobalDashboard from './components/Dashboard/GlobalDashboard';
 import PlantDashboard from './components/Dashboard/PlantDashboard';
 import RecurrenceAnalysis from './components/Dashboard/RecurrenceAnalysis';
 import SystemAnalysis from './components/Dashboard/SystemAnalysis';
+import AuditForm from './components/Audit/AuditForm';
+import SitesManager from './components/Sites/SitesManager';
+import QuestionnaireManager from './components/Questionnaires/QuestionnaireManager';
+import AIAnalysisPanel from './components/AIAnalysis/AIAnalysisPanel';
+import NotificationsPanel from './components/Notifications/NotificationsPanel';
+import UsersManager from './components/Users/UsersManager';
 import LoadingOverlay from './components/common/LoadingOverlay';
 
 const App: React.FC = () => {
@@ -25,11 +31,12 @@ const App: React.FC = () => {
             <SystemAnalysis />
           </div>
         )}
-        {activeTab !== 'indicadores' && (
-          <div className="bg-white p-6 rounded-xl border shadow-sm text-center">
-            <p className="text-sm text-slate-500">Sección en construcción</p>
-          </div>
-        )}
+        {activeTab === 'auditoria' && <AuditForm />}
+        {activeTab === 'sitios' && <SitesManager />}
+        {activeTab === 'cuestionarios' && <QuestionnaireManager />}
+        {activeTab === 'analisis-ia' && <AIAnalysisPanel />}
+        {activeTab === 'notificaciones' && <NotificationsPanel />}
+        {activeTab === 'usuarios' && <UsersManager />}
       </main>
       <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 mt-12 text-xs">
         <div className="max-w-7xl mx-auto px-4 text-center">
