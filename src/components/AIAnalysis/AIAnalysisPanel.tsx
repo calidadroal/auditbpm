@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Bot, RefreshCw, History, Info, Sparkles } from 'lucide-react';
+import { updateDoc, doc } from 'firebase/firestore';
 import { useAppContext } from '../../context/AppContext';
 import { calculateRiskLevel } from '../../utils/calculations';
+import { db } from '../../firebase';
+import { analyzeAuditWithGemini } from '../../gemini';
 
 const AIAnalysisPanel: React.FC = () => {
   const { audits, selectedAuditId, setSelectedAuditId, refreshData } = useAppContext();
@@ -11,11 +14,16 @@ const AIAnalysisPanel: React.FC = () => {
   const selectedAudit = audits.find(a => a.id === selectedAuditId);
 
   const triggerAnalysis = async () => {
-    if (!selectedAuditId) return;
+    if (!selectedAuditId || !selectedAudit) return;
     setIsAnalyzing(true);
     try {
-      await fetch(`/api/audits/${selectedAuditId}/analyze`, { method: 'POST' });
-      await refreshData();
+      const analysis = await analyzeAuditWithGemini(selectedAudit);
+      if (analysis) {
+        await updateDoc(doc(db, 'audits', selectedAuditId), { aiAnalysis: analysis });
+        await refreshData();
+      } else {
+        alert('No se pudo completar el análisis. Reintentá en unos segundos.');
+      }
     } catch (err: any) {
       alert('Error: ' + err.message);
     } finally {
@@ -69,7 +77,7 @@ const AIAnalysisPanel: React.FC = () => {
               <p className="text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
                 {selectedAudit.aiAnalysis?.executiveSummary || `Auditoría realizada el ${selectedAudit.date} en ${selectedAudit.area}. Puntuación: ${selectedAudit.score}%. `}
                 <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${riskColor}`}>Riesgo: {risk}</span>
-                {selectedAudit.hasCriticalFailures ? ' ⚠️ Se detectaron hallazgos críticos que requieren acción inmediata.' : ' No se detectaron desvíos críticos.'}
+                {selectedAudit.hasCriticalFailures ? ' ⚠️ Se detectaron hallazgos críticos.' : ' No se detectaron desvíos críticos.'}
               </p>
             </div>
           </div>
