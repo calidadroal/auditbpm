@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Signature } from 'lucide-react';
+import { updateDoc, doc, addDoc, collection } from 'firebase/firestore';
 import { useAppContext } from '../../context/AppContext';
 import QuestionItem from './QuestionItem';
 import SignatureCanvas from './SignatureCanvas';
 import { calculateScore } from '../../utils/calculations';
-import { createAudit } from '../../firebase';
+import { createAudit, db } from '../../firebase';
+import { analyzeAuditWithGemini } from '../../gemini';
 
 const AuditForm: React.FC = () => {
   const { activeUser, sites, questionnaires, refreshData } = useAppContext();
@@ -94,14 +96,37 @@ const AuditForm: React.FC = () => {
         signatureName: signatureName || null,
         hasCriticalFailures: hasCriticalNC()
       };
-      await createAudit(payload);
+      
+      const saved = await createAudit(payload);
+      
       if (!isDraft) {
+        // Disparar análisis con IA
+        try {
+          const analysis = await analyzeAuditWithGemini({ ...payload, id: saved.id });
+          await updateDoc(doc(db, 'audits', saved.id), { aiAnalysis: analysis });
+          
+          if (analysis.riskLevel === 'Alto') {
+            await addDoc(collection(db, 'notifications'), {
+              date: new Date().toISOString().split('T')[0],
+              area: selectedSector,
+              auditorName,
+              itemName: 'Hallazgo crítico detectado',
+              comment: `Riesgo ${analysis.riskLevel}. ${analysis.executiveSummary?.substring(0, 100)}...`,
+              read: false
+            });
+            alert('⚠️ Se detectaron hallazgos críticos. Se generó una notificación.');
+          }
+        } catch (err) {
+          console.error('Error en análisis IA:', err);
+        }
+        
         setAnswers({});
         setTempSignature(null);
         setSignatureName('');
       }
+      
       await refreshData();
-      alert(isDraft ? 'Borrador guardado' : 'Auditoría enviada correctamente');
+      alert(isDraft ? 'Borrador guardado' : 'Auditoría enviada y analizada con IA');
     } catch (err: any) {
       alert('Error: ' + err.message);
     } finally {
@@ -169,7 +194,7 @@ const AuditForm: React.FC = () => {
       <div className="flex justify-end gap-2 border-t pt-4">
         <button onClick={() => handleSubmit(true)} disabled={isSubmitting} className="px-5 py-2.5 bg-white border rounded text-xs font-bold text-slate-600">Guardar Borrador</button>
         <button onClick={() => handleSubmit(false)} disabled={isSubmitting} className="px-6 py-2.5 bg-blue-600 text-white text-xs font-bold rounded shadow-sm flex items-center gap-1.5">
-          <Sparkles className="w-4 h-4" /> Enviar y Analizar
+          <Sparkles className="w-4 h-4" /> Enviar y Analizar con IA
         </button>
       </div>
 
