@@ -4,6 +4,24 @@ export interface AuditAnswer {
   photo: string | null;
 }
 
+export interface AICorrectiveAction {
+  itemId: string;
+  itemText: string;
+  detectedIssue?: string;
+  recurrenceCount: number;
+  correctiveAction: string;
+  preventiveAction: string;
+  responsible: string;
+  termDays: number;
+}
+
+export interface AIAnalysisResult {
+  executiveSummary?: string;
+  recurrenceAnalysis?: string;
+  rootCauseAnalysis?: string;
+  suggestedActionPlans?: AICorrectiveAction[];
+}
+
 export interface AuditRecord {
   id: string;
   date: string;
@@ -17,6 +35,7 @@ export interface AuditRecord {
   signature?: string;
   signatureName?: string;
   hasCriticalFailures?: boolean;
+  aiAnalysis?: AIAnalysisResult;
 }
 
 export interface NotificationRecord {

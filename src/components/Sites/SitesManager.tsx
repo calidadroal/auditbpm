@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Home, Plus, X } from 'lucide-react';
+import { MapPin, Home } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 const SitesManager: React.FC = () => {
@@ -43,10 +43,9 @@ const SitesManager: React.FC = () => {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Lista de sitios */}
         <div className="lg:col-span-2 bg-white p-4 rounded-xl border shadow-sm">
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 border-b pb-2 mb-3">
-            <Home className="w-4 h-4 text-blue-600" />
+            <Home className="w-4 h-4 text-indigo-600" />
             Establecimientos
           </h3>
           {sites.length === 0 ? (
@@ -58,11 +57,11 @@ const SitesManager: React.FC = () => {
                   key={s.id}
                   onClick={() => setSelectedSite(s.id === selectedSite ? '' : s.id)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    selectedSite === s.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 hover:border-slate-300'
+                    selectedSite === s.id ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <h4 className="font-extrabold text-xs flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                    <MapPin className="w-3.5 h-3.5 text-indigo-600" />
                     {s.name}
                   </h4>
                   <p className="text-[10px] text-slate-400 mt-0.5">{s.description}</p>
@@ -82,7 +81,6 @@ const SitesManager: React.FC = () => {
           )}
         </div>
 
-        {/* Formulario nuevo sitio */}
         <div className="bg-white p-4 rounded-xl border shadow-sm space-y-3.5">
           <h3 className="font-bold text-xs uppercase text-slate-500 border-b pb-1">Nuevo Establecimiento</h3>
           <form onSubmit={handleCreateSite} className="space-y-3 text-xs">
@@ -121,7 +119,7 @@ const SitesManager: React.FC = () => {
             <button
               type="submit"
               disabled={isSaving}
-              className="w-full py-2 bg-blue-600 text-white font-bold rounded text-xs hover:bg-blue-700 disabled:opacity-50"
+              className="w-full py-2 bg-indigo-600 text-white font-bold rounded text-xs hover:bg-indigo-700 disabled:opacity-50"
             >
               {isSaving ? 'Guardando...' : 'Registrar Sitio'}
             </button>
