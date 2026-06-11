@@ -40,7 +40,7 @@ const App: React.FC = () => {
       </main>
       <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 mt-12 text-xs">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p c<p className="font-bold text-white">BPM Gastronomía & SSO v2 - &copy; {new Date().getFullYear()}</p>
+          <p className="font-bold text-white">BPM Gastronomía & SSO v2 - &copy; {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>
