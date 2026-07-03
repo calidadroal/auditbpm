@@ -1,0 +1,87 @@
+# CONTEXTO COMPLETO — App "Todo en Regla" (AuditBPM)
+
+## 📱 DATOS DE LA APP
+| Concepto | Valor |
+|---|---|
+| Nombre app | **Todo en Regla** |
+| Package ID | `com.todoenregla.app` |
+| Tecnología | React + TypeScript + Vite + Firebase + Capacitor |
+| Repositorio local | `C:\Users\Usuario\auditbpm` |
+| URL producción | `https://auditoriacalidad.netlify.app` |
+| Firebase proyecto | `auditbpm-backend` |
+| Landing page | `C:\Users\Usuario\landing-todoenregla\index.html` |
+
+## 🤖 ROLES Y PERMISOS
+- `admin`: Todo. Dashboard completo con semáforo, tendencias, reincidencia, histograma.
+- `auditor`: Solo "Mis Métricas" (5 KPIs) + sus propias auditorías. Puede editar sus informes.
+- `gestor`: Dashboard completo excepto gestión de usuarios.
+- `lector`: Solo ve dashboard y programación.
+- `operador`: Sin permisos.
+
+## 🔐 SISTEMA DE PERMISOS GRANULARES
+- Archivo clave: `src/utils/permissionChecker.ts` → `tienePermiso(user, permiso)`
+- `ROLES_PERMISOS` en `src/types/index.ts`
+- Admin puede sobrescribir permisos por usuario con fecha de vencimiento (free trial)
+- Historial de cambios en colección `permisosHistorial`
+- Modal de edición en `UsersManager.tsx` con tabs: 🔒 Permisos | 📋 Historial
+
+## 🗄️ ARCHIVOS CLAVE
+- `src/types/index.ts` — Todos los tipos (User, AuditRecord, Geolocalizacion, etc.)
+- `src/utils/permissionChecker.ts` — Lógica de permisos
+- `src/context/AuthContext.tsx` — Autenticación
+- `src/context/AppContext.tsx` — Estado global
+- `src/App.tsx` — Ruteo por pestañas según permisos
+- `src/firebase.ts` — Configuración Firebase
+- `src/components/Audit/AuditForm.tsx` — Crear/editar auditorías + geolocalización
+- `src/components/Audit/AuditDetail.tsx` — Detalle con tabs: 📋 Detalle | 📝 Historial
+- `src/components/Dashboard/PlantDashboard.tsx` — Dashboard con semáforo, tendencias, reincidencia
+- `src/components/Users/UsersManager.tsx` — Gestión de usuarios + permisos
+- `src/utils/pdfGenerator.ts` — Generación de PDF con geolocalización
+
+## 📱 ANDROID
+- Capacitor instalado y configurado
+- `npx cap open android` para abrir Android Studio
+- Build APK: Build → Build Bundle(s) / APK(s) → Build APK(s)
+
+## 🔥 FIRESTORE
+- Colecciones: users, sites, audits, notifications, permisosHistorial, auditHistorial, etc.
+- Reglas actualizadas con bloque `auditHistorial` y auditor puede editar sus propias auditorías
+- Índices compuestos creados: `permisosHistorial` (userId + createdAt), `auditHistorial` (auditId + createdAt)
+
+## ✅ FUNCIONALIDADES COMPLETADAS
+- [x] CRUD de usuarios con roles y permisos granulares
+- [x] Modal de edición de permisos + historial + vencimiento (free trial)
+- [x] Dashboard simplificado por rol (auditor ve solo sus métricas)
+- [x] Semáforo de riesgo, tendencia de score, reincidencia de desvíos (NC + CP)
+- [x] Editar auditorías con historial de cambios (colección auditHistorial)
+- [x] Geolocalización automática al iniciar auditoría (desde celular)
+- [x] Compresión de imágenes antes de subir
+- [x] Landing page en `landing-todoenregla/index.html`
+- [x] Deploy en Netlify: https://auditoriacalidad.netlify.app
+
+## 🔜 PENDIENTES
+| # | Tarea | Prioridad |
+|---|---|---|
+| 1 | Build APK en Android Studio | ALTA |
+| 2 | Deploy landing page a Netlify + conectar dominio todorenregla.com | ALTA |
+| 3 | Configurar PWA para iPhone | MEDIA |
+| 4 | Ajustar criterio del semáforo de riesgo | BAJA |
+| 5 | KPIs del tablero de satisfacción (otro proyecto) | BAJA |
+
+## 🖥️ COMANDOS ÚTILES
+```bash
+cd C:\Users\Usuario\auditbpm
+npm run dev              # Desarrollo
+npx vite --host 0.0.0.0 --port 5173  # Acceso desde celu
+npm run build            # Build producción
+npx netlify-cli deploy --prod --dir=dist  # Deploy
+npx cap open android     # Abrir Android Studio
+
+
+PDF SIGUE ROTO, LUEGO DE VER IMAGEN DIGISTE:
+
+Volver al diseño original (bloques con fondo de color, badge, etc.)
+
+Agregar wrapTextManual() para forzar saltos de línea en preguntas y comentarios antes de renderizar
+
+Usar doc.text() normal (no autoTable)

@@ -1,13 +1,183 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>auditbpm</title>
+    <meta name="description" content="AuditBPM - Sistema de Auditorías de Calidad Gastronómica" />
+    <meta name="theme-color" content="#1e40af" />
+    
+    <!-- SEGURIDAD: No permitir que buscadores indexen la app -->
+    <meta name="robots" content="noindex, nofollow" />
+    
+    <!-- SEGURIDAD: Política de seguridad de contenido (CSP) -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https: blob:;
+      connect-src 'self' https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://api.emailjs.com https://*.googleapis.com;
+      frame-src 'self' https://*.firebaseapp.com;
+    " />
+    
+    <title>AuditBPM - Auditorías de Calidad</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- ============================================ -->
+    <!-- CAPA DE SEGURIDAD: Protección de contenido   -->
+    <!-- ============================================ -->
+    <script>
+      (function() {
+        'use strict';
+        
+        // ==========================================
+        // 1. BLOQUEO DE CLICK DERECHO
+        // ==========================================
+        document.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          return false;
+        });
+        
+        // ==========================================
+        // 2. BLOQUEO DE TECLAS DE DESARROLLADOR
+        // ==========================================
+        document.addEventListener('keydown', function(e) {
+          // F12
+          if (e.key === 'F12') {
+            e.preventDefault();
+            return false;
+          }
+          
+          // Ctrl+Shift+I (DevTools)
+          if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+            e.preventDefault();
+            return false;
+          }
+          
+          // Ctrl+Shift+J (Console)
+          if (e.ctrlKey && e.shiftKey && e.key === 'J') {
+            e.preventDefault();
+            return false;
+          }
+          
+          // Ctrl+Shift+C (Inspect Element)
+          if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+            e.preventDefault();
+            return false;
+          }
+          
+          // Ctrl+U (View Source)
+          if (e.ctrlKey && e.key === 'U') {
+            e.preventDefault();
+            return false;
+          }
+          
+          // Ctrl+S (Save Page)
+          if (e.ctrlKey && e.key === 'S') {
+            e.preventDefault();
+            return false;
+          }
+          
+          // Ctrl+P (Print)
+          if (e.ctrlKey && e.key === 'P') {
+            e.preventDefault();
+            return false;
+          }
+        });
+        
+        // ==========================================
+        // 3. BLOQUEO DE SELECCIÓN DE TEXTO
+        // (Permite selección en inputs y textareas)
+        // ==========================================
+        document.addEventListener('selectstart', function(e) {
+          const tag = e.target.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+            return true;
+          }
+          e.preventDefault();
+          return false;
+        });
+        
+        // ==========================================
+        // 4. BLOQUEO DE ARRASTRE DE IMÁGENES
+        // ==========================================
+        document.addEventListener('dragstart', function(e) {
+          if (e.target.tagName === 'IMG') {
+            e.preventDefault();
+            return false;
+          }
+        });
+        
+        // ==========================================
+        // 5. DETECCIÓN DE DEVTOOLS ABIERTO
+        // ==========================================
+        let devtoolsOpen = false;
+        const threshold = 160;
+        
+        const checkDevTools = function() {
+          const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+          const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+          
+          if (widthThreshold || heightThreshold) {
+            if (!devtoolsOpen) {
+              devtoolsOpen = true;
+              console.clear();
+              console.log('%c⚠️ ADVERTENCIA DE SEGURIDAD ⚠️', 'color: red; font-size: 24px; font-weight: bold;');
+              console.log('%cLas herramientas de desarrollador están deshabilitadas por políticas de seguridad.', 'color: orange; font-size: 14px;');
+              console.log('%cToda la información de este sistema es confidencial.', 'color: orange; font-size: 14px;');
+            }
+          } else {
+            devtoolsOpen = false;
+          }
+        };
+        
+        setInterval(checkDevTools, 1000);
+        
+        // ==========================================
+        // 6. LIMPIEZA DE CONSOLA (solo producción)
+        // ==========================================
+        if (window.location.hostname !== 'localhost') {
+          setInterval(function() {
+            console.clear();
+          }, 3000);
+        }
+        
+        // ==========================================
+        // 7. PROTECCIÓN ANTI-DEBUGGER (solo producción)
+        // ==========================================
+        if (window.location.hostname !== 'localhost') {
+          setInterval(function() {
+            const start = performance.now();
+            debugger;
+            const end = performance.now();
+            if (end - start > 100) {
+              document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:#e94560;font-family:sans-serif;"><div style="text-align:center;"><h1 style="font-size:3rem;">🔒</h1><h2>Acceso Restringido</h2><p>Las herramientas de desarrollo están deshabilitadas.</p></div></div>';
+            }
+          }, 1000);
+        }
+        
+        // ==========================================
+        // 8. FILTRO DE DATOS SENSIBLES EN CONSOLA
+        // ==========================================
+        if (window.location.hostname !== 'localhost') {
+          const originalLog = console.log;
+          console.log = function(...args) {
+            const filtered = args.map(arg => {
+              if (typeof arg === 'string') {
+                return arg.replace(/token[=:]\s*[A-Za-z0-9]+/gi, 'token=***FILTERED***');
+              }
+              return arg;
+            });
+            originalLog.apply(console, filtered);
+          };
+        }
+        
+        console.log('%c🔒 AuditBPM - Sistema Seguro', 'color: green; font-weight: bold;');
+      })();
+    </script>
   </body>
 </html>

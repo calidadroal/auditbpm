@@ -1,0 +1,275 @@
+leer para entender completamente la app en la nueva sesion que inicemos
+AuditBPM Gastronomía - Contexto Completo
+Última actualización: 22/06/2026
+App: https://auditoriacalidad.netlify.app
+Admin: gilirenato@gmail.com (Firestore: role="admin")
+Ruta local: C:\Users\Usuario\auditbpm
+Firebase Console: https://console.firebase.google.com/project/auditbpm-backend
+Ejecutar: npm run dev → http://localhost:5173
+Ejecutar con red: npm run dev -- --host → http://192.168.x.x:5173
+
+REGLA DE ORO
+user SIEMPRE de useAuth()
+
+isAdmin, isAuditor, isGestor, isLector de useAppContext()
+
+sites, questionnaires, audits de useAppContext()
+
+useAppContext().user NO EXISTE
+
+assignedSites está en users/{uid}, NO en sites/{id}
+
+where('active', '==', true) en AppContext está REVERTIDO (rompe sitios nuevos)
+
+Filtro de sitios activos: SitesManager con useMemo
+
+FUNCIONALIDADES CONFIRMADAS
+✅ Login/Registro/Recuperación/Cambio de contraseña
+✅ Roles: admin, auditor, gestor, lector, operador
+✅ QR obligatorio + cámara real + entrada manual
+✅ Emails por SITIO (cuestionario solo define cuándo avisar)
+✅ Edición de sitios (emails editables)
+✅ Programación de auditorías (diaria a trimestral)
+✅ Dashboard con programaciones reales
+✅ Sistema de Solicitudes (gestor/lector → admin)
+✅ Panel de Notificaciones con campana 🔔
+✅ Cuestionarios Simple y Sectorizado
+✅ Plantilla Excel simple y sectorizada
+✅ QR vinculado por grupo (Sitio → Sector QR)
+✅ Validación de QR específico por grupo
+✅ Copiar token + Descargar QR PDF
+✅ Generación de PDF de informe
+✅ Clasificación automática de auditorías
+✅ Cambio de roles desde la app
+✅ Reglas Firestore seguras (403 sin login)
+✅ Protección anti click derecho / F12 / DevTools
+✅ Biblioteca de Requisitos configurable
+✅ Requisitos dinámicos por sitio
+✅ Dashboard con vencimientos de requisitos
+✅ Histograma de desvíos NC/CP con filtro de fechas
+✅ Checklist Municipal (Cumple/No Cumple + nivel de riesgo)
+✅ Asignación de cuestionarios por usuario
+✅ Filtro por tipo en Dashboard (Auditoría/Checklist/Todos)
+✅ Notificaciones de riesgo de clausura
+
+ARQUITECTURA DE CONTEXTOS
+AuthContext (useAuth)
+Expone: user, firebaseUser, loading, login, logout, register
+Fuente: Firebase Auth + Firestore (users/{uid})
+Roles válidos: ['admin', 'auditor', 'gestor', 'lector', 'operador']
+
+AppContext (useAppContext)
+Expone: sites, questionnaires, audits, isAuthenticated, isAdmin, isAuditor, isGestor, isLector, selectedSector, setSelectedSector, validateAuditRequirements
+Consume useAuth() internamente
+Filtra sitios por user.assignedSites (no-admin)
+Filtra cuestionarios por user.assignedQuestionnaires (no-admin, desde Firestore)
+
+ESTRUCTURA FIRESTORE
+text
+users/{uid}
+  email, role, displayName, assignedSites[], assignedQuestionnaires[], active
+
+sites/{id}
+  name, description, sectors[], address?, city?, active, notificationEmails[],
+  requisitosAplicados: { [requisitoId]: { numero?, fechaVencimiento? } },
+  createdAt, updatedAt
+
+audits/{id}
+  siteId, questionnaireId, auditorId, responses[], score, clasificacion, status,
+  tipoCuestionario ('auditoria'|'checklist'),
+  siteName, questionnaireName, norma, auditorName, auditorEmail, durationMinutes,
+  totalCumplen, totalCumplenParcial, totalNoCumplen, totalNoAplica, criticosNC,
+  criticosMunicipalesNC?, mediosMunicipalesNC?,
+  recurrenciaDetectada, recurrenciaDetalle, desviosSistematicos[],
+  sectorId?, sectorName?, qrToken?, qrValidatedAt?, startedAt, completedAt, createdAt, updatedAt
+
+questionnaires/{id}
+  name, norma, tipo ('auditoria'|'checklist'),
+  questions[] (incluye nivelRiesgoMunicipal? en checklists),
+  requireQR, requirePhotos, minimumTimeMinutes, allowPartialSave, requireLocation,
+  sectorizado, qrGroups[], qrGroupsConfig{},
+  notificationEmails[], notifyOnCritical, notifyOnRecurrence, notifyOnScoreBelow, active
+
+sectors/{id}
+  siteId, name, qrToken, active, createdAt, updatedAt
+
+notifications/{id}
+  auditId, siteId, siteName, questionnaireId, questionnaireName,
+  tipo ('critico'|'recurrencia'|'score_bajo'|'vencimiento'|'riesgo_clausura'),
+  mensaje, criticosEncontrados, score, read, _deleted, createdAt, emailsEnviados[]
+
+solicitudes/{id}
+  tipo, titulo, descripcion, solicitanteId, solicitanteNombre, solicitanteEmail,
+  sitioId?, sitioNombre?, estado, adminRespuesta?, adminId?, createdAt, updatedAt
+
+auditSchedules/{id}
+  siteId, siteName, frecuencia, proximaAuditoria, ultimaAuditoria, cuestionarioIds[],
+  alertarVencimiento, diasAlertaVencimiento, emailsAlerta[], active, estado, createdAt, updatedAt
+
+requisitos/{id}
+  nombre, categoria, descripcion?, pideNumero, pideFechaVencimiento, active, createdAt, updatedAt
+REGLAS DE FIREBASE
+javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.role in ['lector', 'auditor', 'gestor', 'operador'];
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /sites/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /audits/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.auditorId == request.auth.uid;
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /questionnaires/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /sectors/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /notifications/{document} {
+      allow read, create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /userSiteAssignments/{document} {
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /auditSchedules/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /solicitudes/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (resource.data.solicitanteId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /requisitos/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+NAVEGACIÓN (App.tsx)
+Pestaña	Componente	Roles
+Indicadores	PlantDashboard	admin, auditor, gestor, lector
+Nueva Recorrida	AuditForm	admin, auditor, gestor
+Programación	AuditScheduler	admin, gestor, lector
+Solicitudes	AdminSolicitudes / SolicitudesPanel	admin / auditor, gestor, lector
+Notificaciones	NotificationsPanel	admin, auditor, gestor, lector
+Sitios	SitesManager	admin
+Sectores QR	SectorsManager	admin, gestor
+Requisitos	RequisitosManager	admin
+Cuestionarios	QuestionnaireManager	admin
+Usuarios	UsersManager	admin
+PERMISOS POR ROL
+Funcionalidad	Admin	Auditor	Gestor	Lector
+Ver Dashboard	✅	✅	✅	✅
+Nueva Recorrida	✅	✅	✅	❌
+Ver Programación	✅	❌	✅	✅
+Crear/Editar Programación	✅	❌	✅	❌
+Solicitudes	✅	✅	✅	✅
+Notificaciones	✅	✅	✅	✅
+Gestionar Sitios	✅	❌	❌	❌
+Gestionar Sectores QR	✅	❌	✅	❌
+Gestionar Requisitos	✅	❌	❌	❌
+Gestionar Cuestionarios	✅	❌	❌	❌
+Gestionar Usuarios	✅	❌	❌	❌
+Ver solo sus sitios	❌	✅	✅	✅
+Ver solo sus cuestionarios	❌	✅	✅	✅
+FUNCIONES DE CLASIFICACIÓN (auditUtils.ts)
+Auditoría BPM:
+text
+criticosNC >= 2  → riesgo_alto
+score >= 90      → conforme
+score >= 81      → a_mejorar
+score < 81       → riesgo_alto
+Checklist Municipal:
+text
+criticosNC >= 1  → riesgo_alto (posible clausura)
+score < 70       → riesgo_alto
+score < 85       → a_mejorar
+score >= 85      → conforme
+TIPOS PRINCIPALES (types/index.ts)
+typescript
+UserRole: 'admin' | 'auditor' | 'lector' | 'gestor' | 'operador'
+RespuestaValor: 'C' | 'CP' | 'NC' | 'NA'
+RespuestaChecklist: 'CUMPLE' | 'NO_CUMPLE'
+TipoCuestionario: 'auditoria' | 'checklist'
+NivelRiesgoMunicipal: 'bajo' | 'medio' | 'critico'
+CategoriaRequisito: 'municipal' | 'nacional' | 'seguros' | 'sanidad' | 'bomberos' | 'otro'
+
+Site: incluye requisitosAplicados
+QuestionnaireConfig: incluye tipo, questions[].nivelRiesgoMunicipal
+AuditRecord: incluye tipoCuestionario, criticosMunicipalesNC, mediosMunicipalesNC
+AuditResponse: incluye nivelRiesgoMunicipal, valor puede ser RespuestaChecklist
+Notificacion: incluye tipo 'riesgo_clausura'
+Requisito: nombre, categoria, pideNumero, pideFechaVencimiento
+DEPLOY EN NETLIFY
+URL producción:
+https://auditoriacalidad.netlify.app
+
+Repositorio:
+github.com/calidadroal/auditbpm (branch: main)
+
+⚠️ CRÉDITOS: 0 (agotados hasta próxima renovación)
+Deploy sin créditos (Netlify Drop):
+bash
+npm run build
+# Comprimir carpeta dist en .zip
+# Arrastrar a: https://app.netlify.com/drop
+⚠️ DESCONECTAR GITHUB DE NETLIFY:
+https://app.netlify.com/sites/auditoriacalidad/configuration/deploy
+→ "Disconnect repository" para evitar deploys automáticos
+
+COMANDOS
+bash
+cd C:\Users\Usuario\auditbpm
+npm run dev                 # → http://localhost:5173
+npm run dev -- --host       # → http://192.168.x.x:5173
+npm run build               # → compilar para deploy
+DEPENDENCIAS
+jspdf, html2canvas, qrcode, html5-qrcode, firebase, lucide-react, react: ^18, tailwindcss, xlsx, netlify-cli (global)
+
+📋 PENDIENTES
+#	Tarea	Prioridad	Tiempo
+1	Deploy (cuando haya créditos Netlify)	🚨 Urgente	10 min
+2	Desconectar GitHub de Netlify	🚨 Urgente	2 min
+3	Rebranding a "TodoEnRegla" + dominio + logo	Alta	3-4 hs
+4	Firebase Storage para fotos (requiere tarjeta)	En pausa	1 h
+5	Favicon	Baja	Post rebranding
+6	PWA (instalable como app en celu)	Futuro	1-2 hs
+7	Publicar en Google Play / App Store	Futuro	3-4 hs
+8	Ajuste fino PDF (márgenes de color)	Baja	10 min
+📁 ARCHIVOS A SOLICITAR PARA PRÓXIMA SESIÓN
+Estos son los archivos clave para entender la app:
+
+#	Archivo	Contenido
+1	types/index.ts	Tipos completos (QuestionnaireConfig, AuditRecord, etc.)
+2	firebase.ts	CRUD completo + autenticación + funciones
+3	context/AppContext.tsx	Filtros de sitios/cuestionarios por usuario
+4	context/AuthContext.tsx	Autenticación y roles
+5	App.tsx	Navegación y pestañas
+6	PlantDashboard.tsx	Dashboard con histograma, vencimientos, filtros
+7	AuditForm.tsx	Formulario de auditoría y checklist
+8	QuestionnaireManager.tsx	Creación de cuestionarios (simple/sectorizado/checklist)
+9	SitesManager.tsx	Gestión de sitios con requisitos dinámicos
+10	UsersManager.tsx	Gestión de usuarios con asignación de sitios y cuestionarios
+11	RequisitosManager.tsx	Biblioteca de requisitos
+12	utils/pdfGenerator.ts	Generación de PDF (auditoría y checklist)
+13	utils/auditUtils.ts	Cálculo de scores y clasificación
+14	ExcelImporter.tsx	Importación desde Excel
+15	NotificationsPanel.tsx	Panel de notificaciones
+16	index.html	Seguridad anti click derecho/F12

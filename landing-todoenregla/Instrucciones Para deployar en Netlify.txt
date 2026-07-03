@@ -1,0 +1,8 @@
+🚀 Para deployar en Netlify
+Creá una carpeta landing-todoenregla
+
+Adentro poné este archivo como index.html
+
+Arrastrá la carpeta a Netlify
+
+Conectá tu dominio todorenregla.com

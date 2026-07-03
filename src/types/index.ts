@@ -1,71 +1,376 @@
-export interface AuditAnswer {
-  status: 'C' | 'CP' | 'NC' | 'NA';
-  comment: string;
-  photo: string | null;
+// src/types/index.ts
+
+export type UserRole = 'admin' | 'auditor' | 'lector' | 'gestor' | 'operador';
+
+export type RespuestaValor = 'C' | 'CP' | 'NC' | 'NA';
+export type RespuestaChecklist = 'CUMPLE' | 'NO_CUMPLE';
+export type ClasificacionRiesgo = 'conforme' | 'a_mejorar' | 'riesgo_alto';
+export type NivelDesvio = 'critico' | 'mayor' | 'menor' | 'ninguno';
+export type NivelRiesgoMunicipal = 'bajo' | 'medio' | 'critico';
+export type FrecuenciaAuditoria = 'diaria' | 'semanal' | 'quincenal' | 'mensual' | 'trimestral';
+export type CategoriaRequisito = 'municipal' | 'nacional' | 'seguros' | 'sanidad' | 'bomberos' | 'otro';
+export type TipoCuestionario = 'auditoria' | 'checklist';
+
+export interface User {
+  uid: string;
+  email: string;
+  role: UserRole;
+  displayName: string;
+  assignedSites: string[];
+  active: boolean;
+  trialEndsAt?: any;
+  permisosOverride?: Record<string, boolean>;
+  overrideActivo?: boolean;
+  permisosActualizadosPor?: string;
+  permisosActualizadosEn?: any;
+  fechaVencimientoOverrides?: string | null;
+  createdAt: any;
+  updatedAt: any;
+  termsAccepted?: boolean;
+  termsVersion?: string;
+  termsAcceptedAt?: string | null;
 }
 
-export interface AICorrectiveAction {
-  itemId: string;
-  itemText: string;
-  detectedIssue?: string;
-  recurrenceCount: number;
-  correctiveAction: string;
-  preventiveAction: string;
-  responsible: string;
-  termDays: number;
+export interface HabilitacionItem {
+  numero: string;
+  fechaVencimiento: string | null;
 }
 
-export interface AIAnalysisResult {
-  executiveSummary?: string;
-  recurrenceAnalysis?: string;
-  rootCauseAnalysis?: string;
-  suggestedActionPlans?: AICorrectiveAction[];
+export interface HabilitacionesSitio {
+  establecimiento?: HabilitacionItem;
+  rne?: HabilitacionItem;
+  comercio?: HabilitacionItem;
 }
 
-export interface AuditRecord {
+export interface RequisitoAplicado {
+  numero?: string;
+  fechaVencimiento?: string | null;
+  archivoUrl?: string;
+}
+
+export interface Requisito {
   id: string;
-  date: string;
-  auditorName: string;
-  area: string;
-  siteId: string;
-  siteName: string;
-  questionnaireId: string;
-  score: number;
-  isSubmitted: boolean;
-  signature?: string;
-  signatureName?: string;
-  hasCriticalFailures?: boolean;
-  aiAnalysis?: AIAnalysisResult;
-}
-
-export interface NotificationRecord {
-  id: string;
-  date: string;
-  area: string;
-  auditorName: string;
-  itemName: string;
-  comment: string;
-  read: boolean;
+  nombre: string;
+  categoria: CategoriaRequisito;
+  descripcion?: string;
+  pideNumero: boolean;
+  pideFechaVencimiento: boolean;
+  active: boolean;
+  createdAt: any;
+  updatedAt: any;
 }
 
 export interface Site {
   id: string;
   name: string;
-  description: string;
-  sectors: string[];
+  description?: string;
+  sectors?: string[];
+  address?: string;
+  city?: string;
+  active: boolean;
+  isTrial?: boolean;
+  notificationEmails?: string[];
+  habilitaciones?: HabilitacionesSitio;
+  responsableTecnico?: string;
+  requisitosAplicados?: { [requisitoId: string]: RequisitoAplicado };
+  createdAt: any;
+  updatedAt: any;
 }
 
-export interface Questionnaire {
+export interface SectorQR {
   id: string;
   name: string;
-  description: string;
-  items: any[];
-  isCustom?: boolean;
+  qrToken: string;
+  siteId: string;
+  active: boolean;
+  createdAt: any;
+  updatedAt: any;
 }
 
-export interface AppUser {
+export interface QRGroupConfig {
+  sectorQRId: string;
+  qrToken: string;
+  siteId: string;
+  sectorName: string;
+  siteName: string;
+}
+
+export interface QuestionnaireConfig {
   id: string;
   name: string;
-  email: string;
-  role: 'auditor' | 'lector';
+  description?: string;
+  norma: string;
+  tipo: TipoCuestionario;
+  requireQR: boolean;
+  requirePhotos: boolean;
+  minimumTimeMinutes: number;
+  allowPartialSave: boolean;
+  requireLocation: boolean;
+  questions: QuestionnaireQuestion[];
+  qrGroups?: string[];
+  qrGroupsConfig?: { [grupo: string]: QRGroupConfig };
+  sectorizado?: boolean;
+  notificationEmails?: string[];
+  notifyOnCritical?: boolean;
+  notifyOnRecurrence?: boolean;
+  notifyOnScoreBelow?: number | null;
+  active: boolean;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface QuestionnaireQuestion {
+  id: string;
+  text: string;
+  type: 'cumplimiento';
+  required: boolean;
+  requirePhoto: boolean;
+  requireComment: boolean;
+  instructions: string;
+  norma: string;
+  puntoNorma: string;
+  esCriticoInocuidad: boolean;
+  nivelDesvio: NivelDesvio;
+  nivelRiesgoMunicipal?: NivelRiesgoMunicipal;
+  minimumTimeSeconds: number;
+  order: number;
+  group?: string;
+}
+
+export interface AuditResponse {
+  questionId: string;
+  questionText: string;
+  questionType: string;
+  puntoNorma: string;
+  norma: string;
+  esCriticoInocuidad: boolean;
+  nivelDesvio: NivelDesvio;
+  nivelRiesgoMunicipal?: NivelRiesgoMunicipal;
+  valor: RespuestaValor | RespuestaChecklist;
+  comentario: string;
+  photoURLs: string[];
+  responseTimeSeconds: number;
+  startedAt: any;
+  completedAt: any;
+}
+
+export interface Geolocalizacion {
+  lat: number;
+  lng: number;
+  precision?: number;
+  timestamp?: number;
+}
+
+export interface AuditRecord {
+  id: string;
+  siteId: string;
+  siteName: string;
+  sectorId?: string;
+  sectorName?: string;
+  questionnaireId: string;
+  questionnaireName: string;
+  norma: string;
+  tipoCuestionario?: TipoCuestionario;
+  auditorId: string;
+  auditorEmail: string;
+  auditorName: string;
+  responses: AuditResponse[];
+  score: number;
+  totalAplicables: number;
+  totalCumplen: number;
+  totalCumplenParcial: number;
+  totalNoCumplen: number;
+  totalNoAplica: number;
+  criticosNC: number;
+  criticosMunicipalesNC?: number;
+  mediosMunicipalesNC?: number;
+  clasificacion: ClasificacionRiesgo;
+  recurrenciaDetectada: boolean;
+  recurrenciaDetalle: string;
+  desviosSistematicos: string[];
+  startedAt: any;
+  completedAt: any;
+  durationMinutes: number;
+  qrToken?: string;
+  qrValidatedAt?: any;
+  status: 'in_progress' | 'completed' | 'partial';
+  geolocalizacion?: Geolocalizacion | null;
+  establecimiento?: string | null;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface AuditSchedule {
+  id: string;
+  siteId: string;
+  siteName: string;
+  frecuencia: FrecuenciaAuditoria;
+  proximaAuditoria: any;
+  ultimaAuditoria?: any;
+  cuestionarioIds: string[];
+  responsableId?: string;
+  responsableName?: string;
+  alertarVencimiento: boolean;
+  diasAlertaVencimiento: number;
+  emailsAlerta: string[];
+  active: boolean;
+  estado: 'al_dia' | 'proxima' | 'vencida';
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings?: string[];
+}
+
+export interface RecurrenceResult {
+  detectada: boolean;
+  detalle: string;
+  desviosSistematicos: string[];
+}
+
+export interface AppState {
+  user: User | null;
+  sites: Site[];
+  sectors: SectorQR[];
+  questionnaires: QuestionnaireConfig[];
+  audits: AuditRecord[];
+  userSites: string[];
+  currentQuestionnaire: QuestionnaireConfig | null;
+  selectedSector: SectorQR | null;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface NotificationConfig {
+  id: string;
+  userId: string;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  auditCompleted: boolean;
+  auditAssigned: boolean;
+  scoreBelow: number | null;
+}
+
+export interface Notificacion {
+  id: string;
+  auditId: string;
+  siteId: string;
+  siteName: string;
+  questionnaireId: string;
+  questionnaireName: string;
+  tipo: 'critico' | 'recurrencia' | 'score_bajo' | 'vencimiento' | 'habilitacion_por_vencer' | 'riesgo_clausura' | 'trial_vencido';
+  mensaje: string;
+  criticosEncontrados: number;
+  score: number;
+  read: boolean;
+  createdAt: any;
+  emailsEnviados?: string[];
+  _deleted?: boolean;
+}
+
+export type TipoSolicitud = 'nuevo_sitio' | 'nuevo_cuestionario' | 'modificar_sitio' | 'nuevo_usuario' | 'cambio_frecuencia' | 'otro';
+export type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada' | 'en_revision';
+
+export interface Solicitud {
+  id: string;
+  tipo: TipoSolicitud;
+  titulo: string;
+  descripcion: string;
+  solicitanteId: string;
+  solicitanteNombre: string;
+  solicitanteEmail: string;
+  sitioId?: string;
+  sitioNombre?: string;
+  estado: EstadoSolicitud;
+  adminRespuesta?: string;
+  adminId?: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export type PermisoNombre =
+  | 'crear_auditoria'
+  | 'ejecutar_auditoria'
+  | 'ver_sus_auditorias'
+  | 'ver_todas_auditorias'
+  | 'exportar_reportes'
+  | 'gestionar_checklist'
+  | 'gestionar_usuarios'
+  | 'modificar_permisos'
+  | 'ver_dashboard'
+  | 'crear_sitio'
+  | 'editar_sitio';
+
+export const ROLES_PERMISOS: Record<UserRole, Record<PermisoNombre, boolean>> = {
+  admin: {
+    crear_auditoria: true, ejecutar_auditoria: true, ver_sus_auditorias: true, ver_todas_auditorias: true,
+    exportar_reportes: true, gestionar_checklist: true, gestionar_usuarios: true, modificar_permisos: true,
+    ver_dashboard: true, crear_sitio: true, editar_sitio: true,
+  },
+  auditor: {
+    crear_auditoria: false, ejecutar_auditoria: true, ver_sus_auditorias: true, ver_todas_auditorias: false,
+    exportar_reportes: false, gestionar_checklist: false, gestionar_usuarios: false, modificar_permisos: false,
+    ver_dashboard: false, crear_sitio: false, editar_sitio: false,
+  },
+  gestor: {
+    crear_auditoria: true, ejecutar_auditoria: true, ver_sus_auditorias: true, ver_todas_auditorias: true,
+    exportar_reportes: true, gestionar_checklist: false, gestionar_usuarios: false, modificar_permisos: false,
+    ver_dashboard: true, crear_sitio: false, editar_sitio: false,
+  },
+  lector: {
+    crear_auditoria: false, ejecutar_auditoria: false, ver_sus_auditorias: false, ver_todas_auditorias: true,
+    exportar_reportes: false, gestionar_checklist: false, gestionar_usuarios: false, modificar_permisos: false,
+    ver_dashboard: true, crear_sitio: false, editar_sitio: false,
+  },
+  operador: {
+    crear_auditoria: false, ejecutar_auditoria: false, ver_sus_auditorias: false, ver_todas_auditorias: false,
+    exportar_reportes: false, gestionar_checklist: false, gestionar_usuarios: false, modificar_permisos: false,
+    ver_dashboard: false, crear_sitio: false, editar_sitio: false,
+  },
+};
+
+export const PERMISOS_LABELS: Record<PermisoNombre, string> = {
+  crear_auditoria: 'Crear auditoría', ejecutar_auditoria: 'Ejecutar auditoría',
+  ver_sus_auditorias: 'Ver sus auditorías', ver_todas_auditorias: 'Ver todas las auditorías',
+  exportar_reportes: 'Exportar reportes', gestionar_checklist: 'Gestionar checklist',
+  gestionar_usuarios: 'Gestionar usuarios', modificar_permisos: 'Modificar permisos',
+  ver_dashboard: 'Ver dashboard', crear_sitio: 'Crear sitio', editar_sitio: 'Editar sitio',
+};
+
+export interface CambioPermiso {
+  permiso: string;
+  label: string;
+  antes: boolean;
+  despues: boolean;
+}
+
+export interface PermisoHistorial {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  modificadoPorUid: string;
+  modificadoPorNombre: string;
+  cambios: CambioPermiso[];
+  createdAt: any;
+}
+
+export interface CambioAuditoria {
+  campo: string;
+  preguntaTexto?: string;
+  antes: any;
+  despues: any;
+}
+
+export interface AuditHistorial {
+  id: string;
+  auditId: string;
+  auditSiteName: string;
+  modificadoPorUid: string;
+  modificadoPorNombre: string;
+  cambios: CambioAuditoria[];
+  createdAt: any;
 }

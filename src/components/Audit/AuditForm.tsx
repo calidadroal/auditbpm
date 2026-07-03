@@ -1,207 +1,496 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Signature } from 'lucide-react';
-import { updateDoc, doc, addDoc, collection } from 'firebase/firestore';
+// src/components/Audit/AuditForm.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useAppContext } from '../../context/AppContext';
-import QuestionItem from './QuestionItem';
-import SignatureCanvas from './SignatureCanvas';
-import { calculateScore } from '../../utils/calculations';
-import { createAudit, db } from '../../firebase';
-import { analyzeAuditWithGemini } from '../../gemini';
+import { createAudit, updateAudit, analizarRecurrencia, getClasificacionColor, uploadAuditPhoto, createNotificacion, sendEmailNotification, validateQRToken } from '../../firebase';
+import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { calcularScore, clasificarRiesgo, getClasificacionLabel, getClasificacionBg, getScoreColor, generarConclusion, calcularScoreChecklist, clasificarRiesgoChecklist } from '../../utils/auditUtils';
+import { generarPDF } from '../../utils/pdfGenerator';
+import QRScanner from '../QR/QRScanner';
+import type { AuditRecord, AuditResponse, RespuestaValor, RespuestaChecklist, CambioAuditoria, AuditHistorial, Geolocalizacion } from '../../types';
+import { QrCode, Lock, Building2, ClipboardCheck, ShieldAlert, FileText, Edit3, MapPin } from 'lucide-react';
 
-const AuditForm: React.FC = () => {
-  const { activeUser, sites, questionnaires, refreshData } = useAppContext();
+const OPCIONES: { value: RespuestaValor; label: string; color: string }[] = [
+  { value: 'C', label: 'C - Cumple', color: 'bg-green-100 border-green-400 text-green-800' },
+  { value: 'CP', label: 'CP - Cumple Parcial', color: 'bg-yellow-100 border-yellow-400 text-yellow-800' },
+  { value: 'NC', label: 'NC - No Cumple', color: 'bg-red-100 border-red-400 text-red-800' },
+  { value: 'NA', label: 'NA - No Aplica', color: 'bg-gray-100 border-gray-400 text-gray-600' },
+];
+
+const OPCIONES_CHECKLIST: { value: RespuestaChecklist; label: string; color: string }[] = [
+  { value: 'CUMPLE', label: '✅ Cumple', color: 'bg-green-100 border-green-400 text-green-800' },
+  { value: 'NO_CUMPLE', label: '❌ No Cumple', color: 'bg-red-100 border-red-400 text-red-800' },
+];
+
+const RIESGO_LABELS: Record<string, string> = { 'critico': '🔴 Crítico', 'medio': '🟡 Medio', 'bajo': '🟢 Bajo' };
+const RIESGO_COLORS: Record<string, string> = { 'critico': 'border-red-500 bg-red-50', 'medio': 'border-yellow-500 bg-yellow-50', 'bajo': 'border-blue-500 bg-blue-50' };
+
+function comprimirImagen(file: File, maxWidth: number = 800, calidad: number = 0.6): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = maxWidth / img.width;
+      canvas.width = maxWidth;
+      canvas.height = img.height * ratio;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error('No se pudo comprimir')); }, 'image/jpeg', calidad);
+    };
+    img.onerror = () => reject(new Error('Error al cargar imagen'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+interface AuditFormProps {
+  auditToEdit?: AuditRecord | null;
+  onCancelEdit?: () => void;
+  onEditComplete?: () => void;
+}
+
+const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEditComplete }) => {
+  const { user } = useAuth();
+  const { sites, questionnaires, selectedSector, setSelectedSector } = useAppContext();
+
   const [selectedSiteId, setSelectedSiteId] = useState('');
-  const [selectedSector, setSelectedSector] = useState('');
   const [selectedQuestionnaireId, setSelectedQuestionnaireId] = useState('');
-  const [auditorName, setAuditorName] = useState(activeUser?.name || '');
-  const [answers, setAnswers] = useState<Record<string, any>>({});
-  const [signatureName, setSignatureName] = useState('');
-  const [tempSignature, setTempSignature] = useState<string | null>(null);
-  const [isSigningOpen, setIsSigningOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [establecimiento, setEstablecimiento] = useState('');
+  const [observacionesGenerales, setObservacionesGenerales] = useState('');
+  const [respuestas, setRespuestas] = useState<Record<string, RespuestaValor | RespuestaChecklist>>({});
+  const [comentarios, setComentarios] = useState<Record<string, string>>({});
+  const [fotos, setFotos] = useState<Record<string, string[]>>({});
+  const [startTime] = useState<number>(Date.now());
+  const [questionStartTimes, setQuestionStartTimes] = useState<Record<string, number>>({});
+  const [qrValidated, setQrValidated] = useState(false);
+  const [currentGroup, setCurrentGroup] = useState<string | null>(null);
+  const [validatedGroups, setValidatedGroups] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [resultado, setResultado] = useState<any>(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState<Record<string, boolean>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [geolocalizacion, setGeolocalizacion] = useState<Geolocalizacion | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
-  useEffect(() => {
-    if (sites.length > 0 && !selectedSiteId) {
-      setSelectedSiteId(sites[0].id);
-      setSelectedSector(sites[0].sectors[0] || '');
-    }
-  }, [sites]);
+  const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  useEffect(() => {
-    if (questionnaires.length > 0 && !selectedQuestionnaireId) {
-      setSelectedQuestionnaireId(questionnaires[0].id);
-    }
-  }, [questionnaires]);
+  const isEditing = !!auditToEdit;
 
-  useEffect(() => {
-    const quest = questionnaires.find(q => q.id === selectedQuestionnaireId);
-    if (quest) {
-      const init: Record<string, any> = {};
-      quest.items.forEach((item: any) => {
-        init[item.id] = { status: 'C', comment: '', photo: null };
-      });
-      setAnswers(init);
-    }
-  }, [selectedQuestionnaireId, questionnaires]);
-
-  const handleStatusChange = (itemId: string, status: string) => {
-    setAnswers(prev => ({ ...prev, [itemId]: { ...prev[itemId], status } }));
-  };
-
-  const handleCommentChange = (itemId: string, comment: string) => {
-    setAnswers(prev => ({ ...prev, [itemId]: { ...prev[itemId], comment } }));
-  };
-
-  const handlePhotoSelect = (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAnswers(prev => ({ ...prev, [itemId]: { ...prev[itemId], photo: reader.result as string } }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removePhoto = (itemId: string) => {
-    setAnswers(prev => ({ ...prev, [itemId]: { ...prev[itemId], photo: null } }));
-  };
-
-  const currentScore = calculateScore(answers);
-
-  const hasCriticalNC = () => {
-    const quest = questionnaires.find(q => q.id === selectedQuestionnaireId);
-    if (!quest) return false;
-    return quest.items.some((item: any) => item.critical && answers[item.id]?.status === 'NC');
-  };
-
-  const handleSubmit = async (isDraft: boolean) => {
-    if (activeUser?.role === 'lector') {
-      alert('Solo lectura: no tienes permisos.');
+  // ✅ GEOLOCALIZACIÓN - CORREGIDA
+  const capturarGeolocalizacion = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocalización no soportada');
       return;
     }
-    setIsSubmitting(true);
-    try {
-      const selectedSite = sites.find(s => s.id === selectedSiteId);
-      const payload = {
-        auditorName,
-        area: selectedSector || 'General',
-        siteId: selectedSiteId,
-        siteName: selectedSite?.name || '',
-        questionnaireId: selectedQuestionnaireId,
-        answers,
-        score: currentScore,
-        isSubmitted: !isDraft,
-        signature: tempSignature || null,
-        signatureName: signatureName || null,
-        hasCriticalFailures: hasCriticalNC()
-      };
-
-      const saved = await createAudit(payload);
-
-      if (!isDraft) {
-        try {
-          const analysis = await analyzeAuditWithGemini({ ...payload, id: saved.id });
-          if (analysis) {
-            await updateDoc(doc(db, 'audits', saved.id), { aiAnalysis: analysis });
-
-            if (analysis.riskLevel === 'Alto') {
-              await addDoc(collection(db, 'notifications'), {
-                date: new Date().toISOString().split('T')[0],
-                area: selectedSector,
-                auditorName,
-                itemName: 'Hallazgo crítico detectado',
-                comment: `Riesgo ${analysis.riskLevel}. ${analysis.executiveSummary?.substring(0, 100)}...`,
-                read: false
-              });
-              alert('⚠️ Se detectaron hallazgos críticos. Se generó una notificación.');
-            }
-          } else {
-            alert('⚠️ La auditoría se guardó pero el análisis con IA no pudo completarse. Reintentá desde Informe IA.');
-          }
-        } catch (err) {
-          console.error('Error en análisis IA:', err);
-        }
-
-        setAnswers({});
-        setTempSignature(null);
-        setSignatureName('');
-      }
-
-      await refreshData();
-      alert(isDraft ? 'Borrador guardado' : 'Auditoría enviada y analizada con IA');
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    setGeoLoading(true);
+    setGeoError(null);
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGeolocalizacion({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          precision: position.coords.accuracy,
+          timestamp: position.timestamp
+        });
+        setGeoError(null);
+        setGeoLoading(false);
+      },
+      (error) => {
+        let mensaje = 'No se pudo obtener la ubicación';
+        if (error.code === 1) mensaje = 'Permiso de ubicación denegado';
+        else if (error.code === 2) mensaje = 'Señal GPS no disponible';
+        else if (error.code === 3) mensaje = 'Tiempo de espera agotado';
+        setGeoError(mensaje);
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
   };
 
-  const activeQuest = questionnaires.find(q => q.id === selectedQuestionnaireId);
-  const currentSectors = sites.find(s => s.id === selectedSiteId)?.sectors || [];
+  // ✅ useEffect CORREGIDO - SOLO ESTO CAMBIÓ
+  useEffect(() => {
+    if (!isEditing && !auditToEdit) {
+      capturarGeolocalizacion();
+    }
+    if (auditToEdit?.geolocalizacion) {
+      setGeolocalizacion(auditToEdit.geolocalizacion);
+    }
+  }, []); // ← Array vacío = se ejecuta UNA vez
+
+  useEffect(() => {
+    if (auditToEdit) {
+      setSelectedSiteId(auditToEdit.siteId);
+      setSelectedQuestionnaireId(auditToEdit.questionnaireId);
+      setObservacionesGenerales(auditToEdit.observacionesGenerales || '');
+      setEstablecimiento(auditToEdit.establecimiento || '');
+      const respMap: Record<string, RespuestaValor | RespuestaChecklist> = {};
+      const comMap: Record<string, string> = {};
+      const fotoMap: Record<string, string[]> = {};
+      auditToEdit.responses?.forEach(r => { respMap[r.questionId] = r.valor; comMap[r.questionId] = r.comentario || ''; fotoMap[r.questionId] = r.photoURLs || []; });
+      setRespuestas(respMap); setComentarios(comMap); setFotos(fotoMap); setQrValidated(true);
+    }
+  }, [auditToEdit]);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => { setCurrentTime(Math.floor((Date.now() - startTime) / 1000)); }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [startTime]);
+
+  const currentConfig = questionnaires.find(q => q.id === selectedQuestionnaireId);
+  const selectedSite = sites.find(s => s.id === selectedSiteId);
+  const esChecklist = currentConfig?.tipo === 'checklist';
+
+  useEffect(() => {
+    if (!isEditing) {
+      if (currentConfig?.requireQR || currentConfig?.sectorizado) { setQrValidated(false); setSelectedSector(null); setValidatedGroups([]); setCurrentGroup(null); setQrError(null); }
+      else setQrValidated(true);
+    }
+  }, [currentConfig?.id, isEditing]);
+
+  const grupos = currentConfig?.sectorizado ? [...new Set((currentConfig.questions || []).filter(q => q.group).map(q => q.group!))] : [];
+  const grupoActual = grupos.length > 0 ? grupos.find(g => !validatedGroups.includes(g)) || null : null;
+
+  const handleQRScanSuccess = async (token?: string) => {
+    if (currentConfig?.sectorizado && grupoActual) {
+      const qrConfig = currentConfig.qrGroupsConfig?.[grupoActual];
+      if (qrConfig && token) {
+        try {
+          const result = await validateQRToken(token);
+          if (result.isValid && result.sector) {
+            if (token === qrConfig.qrToken) { setValidatedGroups([...validatedGroups, grupoActual]); setCurrentGroup(grupoActual); setSelectedSector(result.sector); setQrError(null); }
+            else setQrError(`QR incorrecto. Se esperaba el QR de: ${qrConfig.sectorName} (${qrConfig.siteName})`);
+          } else setQrError('QR inválido o inactivo');
+        } catch (e) { setQrError('Error al validar QR'); }
+      }
+    } else setQrValidated(true);
+  };
+
+  const handleStartQuestion = (questionId: string) => { setQuestionStartTimes(prev => ({ ...prev, [questionId]: Date.now() })); };
+  const handleRespuesta = (questionId: string, valor: RespuestaValor | RespuestaChecklist) => { setRespuestas(prev => ({ ...prev, [questionId]: valor })); };
+  const handleComentario = (questionId: string, comentario: string) => { setComentarios(prev => ({ ...prev, [questionId]: comentario })); };
+  const handleFileSelect = (questionId: string) => { fileInputRefs.current[questionId]?.click(); };
+
+  const handleFileChange = async (questionId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files; if (!files || files.length === 0) return;
+    setUploadingPhotos(prev => ({ ...prev, [questionId]: true })); setUploadProgress(prev => ({ ...prev, [questionId]: 0 }));
+    try {
+      const archivoOriginal = files[0];
+      const archivoComprimido = await comprimirImagen(archivoOriginal, 800, 0.6);
+      const nombreSinExt = archivoOriginal.name.replace(/\.[^/.]+$/, '');
+      const fileComprimido = new File([archivoComprimido], `${nombreSinExt}.jpg`, { type: 'image/jpeg' });
+      const tempAuditId = `temp_${Date.now()}`;
+      const url = await uploadAuditPhoto(tempAuditId, questionId, fileComprimido, (progress) => { setUploadProgress(prev => ({ ...prev, [questionId]: progress })); });
+      setFotos(prev => ({ ...prev, [questionId]: [...(prev[questionId] || []), url] }));
+    } catch (error: any) { console.error('Error subiendo foto:', error); alert('Error al subir la foto.'); }
+    finally { setUploadingPhotos(prev => ({ ...prev, [questionId]: false })); setUploadProgress(prev => ({ ...prev, [questionId]: 0 })); if (fileInputRefs.current[questionId]) fileInputRefs.current[questionId]!.value = ''; }
+  };
+
+  const handleAddFotoUrl = (questionId: string) => { const url = prompt('URL de la foto:'); if (url) setFotos(prev => ({ ...prev, [questionId]: [...(prev[questionId] || []), url] })); };
+  const handleRemoveFoto = (questionId: string, index: number) => { setFotos(prev => ({ ...prev, [questionId]: (prev[questionId] || []).filter((_, i) => i !== index) })); };
+
+  const saveHistorialAudit = async (auditId: string, auditSiteName: string, cambios: CambioAuditoria[]) => {
+    if (cambios.length === 0) return;
+    const entry: Omit<AuditHistorial, 'id'> = { auditId, auditSiteName, modificadoPorUid: user?.uid || '', modificadoPorNombre: user?.displayName || '', cambios, createdAt: serverTimestamp() };
+    await addDoc(collection(db, 'auditHistorial'), entry);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setErrors([]);
+    if (!currentConfig || !user) return;
+    if (!isEditing && (currentConfig.requireQR || currentConfig.sectorizado) && !qrValidated && !currentConfig.sectorizado) { setErrors(['Debe escanear el QR antes de finalizar']); return; }
+    if (!isEditing && currentConfig.sectorizado && validatedGroups.length < grupos.length) { setErrors([`Faltan validar ${grupos.length - validatedGroups.length} sector(es) con QR`]); return; }
+
+    const questions = currentConfig.questions || [];
+    const errs: string[] = [];
+    for (const q of questions) {
+      if (!respuestas[q.id]) errs.push(`Falta respuesta en: ${q.text}`);
+      if (q.requireComment && !comentarios[q.id]?.trim()) errs.push(`Falta comentario en: ${q.text}`);
+      if (q.requirePhoto && (!fotos[q.id] || fotos[q.id].length === 0)) errs.push(`Falta foto en: ${q.text}`);
+    }
+    if (errs.length > 0) { setErrors(errs); return; }
+
+    setSaving(true);
+    try {
+      if (!selectedSite) throw new Error('Sitio no encontrado');
+      const responses: AuditResponse[] = questions.map(q => ({
+        questionId: q.id, questionText: q.text, questionType: q.type || 'C/NC', puntoNorma: q.puntoNorma, norma: q.norma || currentConfig.norma || '',
+        esCriticoInocuidad: q.esCriticoInocuidad || false, nivelDesvio: q.nivelDesvio || 'ninguno', nivelRiesgoMunicipal: q.nivelRiesgoMunicipal || null,
+        valor: respuestas[q.id] || (esChecklist ? 'NO_CUMPLE' : 'NA'), comentario: comentarios[q.id] || '', photoURLs: fotos[q.id] || [],
+        responseTimeSeconds: questionStartTimes[q.id] ? Math.floor((Date.now() - questionStartTimes[q.id]) / 1000) : 0,
+        startedAt: new Date(questionStartTimes[q.id] || Date.now()), completedAt: new Date()
+      }));
+
+      let scoreData: any; let clasificacion: string;
+      if (esChecklist) { scoreData = calcularScoreChecklist(responses); clasificacion = clasificarRiesgoChecklist(scoreData.score, scoreData.criticosNC); }
+      else { scoreData = calcularScore(responses); clasificacion = clasificarRiesgo(scoreData.score, scoreData.criticosNC); }
+
+      const auditData: any = {
+        siteId: selectedSiteId, siteName: selectedSite.name, questionnaireId: selectedQuestionnaireId,
+        questionnaireName: currentConfig.name, norma: currentConfig.norma || '', auditorId: user.uid,
+        auditorEmail: user.email || '', auditorName: user.displayName || user.email || '',
+        tipoCuestionario: currentConfig.tipo || 'auditoria', observacionesGenerales: observacionesGenerales.trim() || null,
+        establecimiento: establecimiento.trim() || null,
+        geolocalizacion: geolocalizacion || null,
+        responses, score: scoreData.score, totalAplicables: scoreData.totalAplicables,
+        totalCumplen: scoreData.totalCumplen, totalCumplenParcial: scoreData.totalCumplenParcial || 0,
+        totalNoCumplen: scoreData.totalNoCumplen, totalNoAplica: scoreData.totalNoAplica || 0,
+        criticosNC: scoreData.criticosNC, clasificacion,
+        criticosMunicipalesNC: esChecklist ? responses.filter(r => r.nivelRiesgoMunicipal === 'critico' && r.valor === 'NO_CUMPLE').length : null,
+        mediosMunicipalesNC: esChecklist ? responses.filter(r => r.nivelRiesgoMunicipal === 'medio' && r.valor === 'NO_CUMPLE').length : null,
+        recurrenciaDetectada: false, recurrenciaDetalle: '', desviosSistematicos: [],
+        startedAt: new Date(startTime), completedAt: new Date(), durationMinutes: Math.floor(currentTime / 60), status: 'completed'
+      };
+      if (selectedSector) { auditData.sectorId = selectedSector.id; auditData.sectorName = selectedSector.name; auditData.qrToken = selectedSector.qrToken; auditData.qrValidatedAt = new Date(); }
+
+      if (!esChecklist) {
+        const recurrencia = await analizarRecurrencia(auditData as AuditRecord);
+        auditData.recurrenciaDetectada = recurrencia.detectada; auditData.recurrenciaDetalle = recurrencia.detalle;
+        auditData.desviosSistematicos = recurrencia.desviosSistematicos; if (recurrencia.detectada) auditData.clasificacion = 'riesgo_alto';
+      }
+
+      const cambios: CambioAuditoria[] = [];
+      if (isEditing && auditToEdit) {
+        auditToEdit.responses?.forEach(rOld => {
+          const rNew = responses.find(r => r.questionId === rOld.questionId);
+          if (rNew) {
+            if (rOld.valor !== rNew.valor) cambios.push({ campo: 'respuesta', preguntaTexto: rOld.questionText, antes: rOld.valor, despues: rNew.valor });
+            if (rOld.comentario !== rNew.comentario) cambios.push({ campo: 'comentario', preguntaTexto: rOld.questionText, antes: rOld.comentario || '(vacío)', despues: rNew.comentario || '(vacío)' });
+          }
+        });
+        if (auditToEdit.observacionesGenerales !== auditData.observacionesGenerales) cambios.push({ campo: 'observaciones', antes: auditToEdit.observacionesGenerales || '(vacío)', despues: auditData.observacionesGenerales || '(vacío)' });
+        if (auditToEdit.establecimiento !== auditData.establecimiento) cambios.push({ campo: 'establecimiento', antes: auditToEdit.establecimiento || '(vacío)', despues: auditData.establecimiento || '(vacío)' });
+      }
+
+      if (isEditing && auditToEdit) {
+        const auditRef = doc(db, 'audits', auditToEdit.id);
+        await updateDoc(auditRef, { ...auditData, updatedAt: new Date() });
+        await saveHistorialAudit(auditToEdit.id, auditToEdit.siteName, cambios);
+        setResultado({ id: auditToEdit.id, ...auditData, editado: true });
+        if (onEditComplete) onEditComplete();
+      } else {
+        const auditId = await createAudit(auditData);
+        setResultado({ id: auditId, ...auditData, recurrencia: auditData.recurrenciaDetectada ? { detectada: true, detalle: auditData.recurrenciaDetalle, desviosSistematicos: auditData.desviosSistematicos } : undefined });
+      }
+    } catch (error: any) { console.error('Error guardando:', error); alert('Error al guardar: ' + (error.message || '')); }
+    finally { setSaving(false); }
+  };
+
+  const formatTime = (s: number) => { const m = Math.floor(s / 60); const seg = s % 60; return `${m.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`; };
+  const mapsUrl = geolocalizacion ? `https://www.google.com/maps?q=${geolocalizacion.lat},${geolocalizacion.lng}` : null;
+
+  if (resultado) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="bg-white border rounded-lg p-6 text-center">
+          <h2 className="text-2xl font-bold mb-4">{resultado.editado ? '✏️ Auditoría Editada' : '✅ Auditoría Guardada'}</h2>
+          <div className={`text-4xl font-black mb-2 ${getScoreColor(resultado.score)}`}>{resultado.score}%</div>
+          <div className={`inline-block px-4 py-2 rounded-lg text-lg font-bold border mb-2 ${getClasificacionBg(resultado.clasificacion)}`}>{getClasificacionColor(resultado.clasificacion)}</div>
+          <p className="text-sm text-gray-500 mb-4">{getClasificacionLabel(resultado.clasificacion)}</p>
+          {resultado.editado && <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4"><p className="text-sm text-purple-700">📝 Los cambios se guardaron y quedaron registrados en el historial.</p></div>}
+          {resultado.geolocalizacion && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-700">📍 Ubicación registrada: <a href={`https://www.google.com/maps?q=${resultado.geolocalizacion.lat},${resultado.geolocalizacion.lng}`} target="_blank" rel="noopener noreferrer" className="underline font-bold">Ver en Google Maps</a></p>
+              <p className="text-xs text-blue-500 mt-1">{resultado.geolocalizacion.lat.toFixed(6)}, {resultado.geolocalizacion.lng.toFixed(6)}</p>
+            </div>
+          )}
+          {resultado.establecimiento && <p className="text-sm text-gray-600 mb-2">🏫 Establecimiento: <strong>{resultado.establecimiento}</strong></p>}
+          <div className="flex justify-center gap-3 mt-4">
+            <button onClick={() => generarPDF(resultado as AuditRecord)} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">📄 Descargar PDF</button>
+            <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Nuevo Control</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white p-4 rounded-xl border shadow-sm space-y-3.5">
-        <h3 className="font-extrabold text-slate-900 text-sm border-b pb-1.5">Nueva Recorrida de Auditoría</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
-          <div><label className="text-[10px] uppercase font-bold text-slate-400">Inspector</label>
-            <input type="text" value={auditorName} onChange={(e) => setAuditorName(e.target.value)} className="w-full text-xs rounded border border-slate-200 h-9 p-2 mt-1" />
-          </div>
-          <div><label className="text-[10px] uppercase font-bold text-slate-400">Planta</label>
-            <select value={selectedSiteId} onChange={(e) => { setSelectedSiteId(e.target.value); const secs = sites.find(s => s.id === e.target.value)?.sectors || []; setSelectedSector(secs[0] || ''); }} className="w-full text-xs rounded border border-slate-200 h-9 p-2 mt-1 bg-white">
-              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div><label className="text-[10px] uppercase font-bold text-slate-400">Sector</label>
-            <select value={selectedSector} onChange={(e) => setSelectedSector(e.target.value)} className="w-full text-xs rounded border border-slate-200 h-9 p-2 mt-1 bg-white">
-              {currentSectors.map(sec => <option key={sec} value={sec}>{sec}</option>)}
-            </select>
-          </div>
-          <div><label className="text-[10px] uppercase font-bold text-slate-400">Cuestionario</label>
-            <select value={selectedQuestionnaireId} onChange={(e) => setSelectedQuestionnaireId(e.target.value)} className="w-full text-xs rounded border border-blue-200 h-9 p-2 mt-1 bg-white font-bold text-blue-950">
-              {questionnaires.map(q => <option key={q.id} value={q.id}>{q.name} ({q.items?.length || 0} items)</option>)}
-            </select>
-          </div>
-        </div>
+    <div className="p-6">
+      <div className="flex items-center gap-3 mb-4">
+        {isEditing && <button onClick={onCancelEdit} className="text-gray-500 hover:text-gray-700 text-sm underline">← Cancelar edición</button>}
+        <h2 className="text-2xl font-bold">{isEditing ? `✏️ Editando: ${auditToEdit?.questionnaireName}` : esChecklist ? 'Nuevo Checklist Municipal' : 'Nueva Auditoría'}</h2>
+      </div>
+      {isEditing && <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700"><Edit3 className="w-4 h-4 inline mr-1" />Modo edición: los cambios se guardarán en el historial.</div>}
+
+      <div className="mb-4 p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-sm">
+        <span>⏱ Tiempo: <strong>{formatTime(currentTime)}</strong></span>
+        {currentConfig?.minimumTimeMinutes > 0 && <span className="text-yellow-600">Mínimo: {currentConfig.minimumTimeMinutes} min</span>}
+        {!isEditing && (currentConfig?.requireQR || currentConfig?.sectorizado) && (
+          <span className={currentConfig?.sectorizado ? (validatedGroups.length === grupos.length ? 'text-green-600' : 'text-red-600') : (qrValidated ? 'text-green-600' : 'text-red-600')}>
+            {currentConfig?.sectorizado ? `🔒 ${validatedGroups.length}/${grupos.length} sectores` : qrValidated ? '✅ QR Validado' : '🔒 QR Pendiente'}
+          </span>
+        )}
+        {esChecklist && <span className="text-red-600 flex items-center gap-1"><ClipboardCheck className="w-4 h-4" /> Municipal</span>}
       </div>
 
-      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
-        <span className="text-xs font-bold text-blue-700">Cumplimiento parcial:</span>
-        <span className="text-lg font-black text-blue-900">{currentScore}%</span>
-      </div>
+      {errors.length > 0 && (<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"><ul className="list-disc list-inside text-sm text-red-600">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></div>)}
+      {qrError && (<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{qrError}</div>)}
 
-      <div className="space-y-3">
-        {activeQuest?.items?.map((item: any, idx: number) => (
-          <QuestionItem key={item.id} item={item} index={idx} answer={answers[item.id] || { status: 'C', comment: '', photo: null }} onStatusChange={handleStatusChange} onCommentChange={handleCommentChange} onPhotoSelect={handlePhotoSelect} onRemovePhoto={removePhoto} />
-        ))}
-      </div>
-
-      <div className="bg-white p-4 rounded-xl border shadow-sm space-y-3">
-        <h3 className="font-bold text-xs uppercase text-slate-500">Validación (Firma)</h3>
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <input type="text" value={signatureName} onChange={(e) => setSignatureName(e.target.value)} placeholder="Nombre del responsable" className="w-full text-xs rounded border border-slate-200 h-9 p-2" />
-            <button onClick={() => setIsSigningOpen(true)} className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 font-bold rounded text-xs flex items-center gap-1.5">
-              <Signature className="w-4 h-4" /> Firmar digitalmente
-            </button>
-          </div>
-          <div className="bg-slate-50 border border-dashed rounded-lg p-3 flex items-center justify-center min-h-[90px]">
-            {tempSignature ? (
-              <div className="text-center"><img src={tempSignature} className="max-h-16 bg-white p-1 border rounded" alt="Firma" /><p className="text-[10px] font-bold text-slate-500 mt-1">{signatureName}</p></div>
-            ) : <span className="text-[11px] text-slate-400">Sin firma registrada</span>}
-          </div>
+          <div><label className="block text-sm font-medium mb-1">Sitio *</label><select value={selectedSiteId} onChange={(e) => setSelectedSiteId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar sitio...</option>{sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+          <div><label className="block text-sm font-medium mb-1">Cuestionario *</label><select value={selectedQuestionnaireId} onChange={(e) => setSelectedQuestionnaireId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar cuestionario...</option>{questionnaires.map(q => <option key={q.id} value={q.id}>{q.name} ({q.norma}) {q.tipo === 'checklist' ? '🏛️ Municipal' : q.sectorizado ? '🏢 Sectorizado' : ''}</option>)}</select></div>
         </div>
-      </div>
 
-      <div className="flex justify-end gap-2 border-t pt-4">
-        <button onClick={() => handleSubmit(true)} disabled={isSubmitting} className="px-5 py-2.5 bg-white border rounded text-xs font-bold text-slate-600">Guardar Borrador</button>
-        <button onClick={() => handleSubmit(false)} disabled={isSubmitting} className="px-6 py-2.5 bg-blue-600 text-white text-xs font-bold rounded shadow-sm flex items-center gap-1.5">
-          <Sparkles className="w-4 h-4" /> Enviar y Analizar con IA
-        </button>
-      </div>
+        <div><label className="block text-sm font-medium mb-1 flex items-center gap-1"><MapPin className="w-4 h-4 text-gray-500" /> Establecimiento (opcional)</label><input type="text" value={establecimiento} onChange={(e) => setEstablecimiento(e.target.value)} placeholder="Ej: Escuela N° 234, Salón Norte, etc." className="w-full px-3 py-2 border rounded-lg text-sm" /><p className="text-xs text-gray-400 mt-1">Identificá el establecimiento específico dentro del sitio genérico.</p></div>
 
-      {isSigningOpen && <SignatureCanvas onSave={(dataUrl) => { setTempSignature(dataUrl); setIsSigningOpen(false); }} onCancel={() => setIsSigningOpen(false)} />}
+        {/* GEOLOCALIZACIÓN UI */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <MapPin className="w-5 h-5 text-blue-600" />
+            <h3 className="font-bold text-blue-800 text-sm">📍 Ubicación actual</h3>
+            {geolocalizacion && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full ml-auto">✅ Capturada</span>
+            )}
+          </div>
+          
+          {geoLoading ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+              <p className="text-sm text-blue-600">Obteniendo ubicación...</p>
+            </div>
+          ) : geolocalizacion ? (
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-blue-700">✅ Ubicación registrada</span>
+                <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-blue-500 underline hover:text-blue-700 ml-auto">🔄 Reintentar</button>
+              </div>
+              <p className="text-xs text-blue-500 mt-1 font-mono">
+                {geolocalizacion.lat.toFixed(6)}, {geolocalizacion.lng.toFixed(6)}
+                {geolocalizacion.precision && ` (±${Math.round(geolocalizacion.precision)}m)`}
+              </p>
+              {mapsUrl && (
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline hover:text-blue-800 mt-1 inline-block">
+                  🗺️ Ver en Google Maps
+                </a>
+              )}
+            </div>
+          ) : geoError ? (
+            <div>
+              <p className="text-sm text-red-600">{geoError}</p>
+              <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-blue-600 underline hover:text-blue-800 mt-1">🔄 Reintentar</button>
+            </div>
+          ) : (
+            <button type="button" onClick={capturarGeolocalizacion} className="px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors">
+              📍 Obtener ubicación
+            </button>
+          )}
+        </div>
+
+        <div><label className="block text-sm font-medium mb-1 flex items-center gap-1"><FileText className="w-4 h-4 text-gray-500" /> Observaciones generales</label><textarea value={observacionesGenerales} onChange={(e) => setObservacionesGenerales(e.target.value)} placeholder="Observaciones vinculadas al sitio (opcional)..." className="w-full px-3 py-2 border rounded-lg text-sm resize-none" rows={3} /></div>
+
+        {!isEditing && currentConfig?.requireQR && !currentConfig.sectorizado && !qrValidated && (
+          <div className="border-2 border-orange-300 bg-orange-50 rounded-lg p-4"><div className="flex items-center gap-2 mb-3"><Lock className="w-5 h-5 text-orange-600" /><h3 className="font-bold text-orange-800">Validación QR Requerida</h3></div><p className="text-sm text-orange-700 mb-3">Escanee el código QR del sector antes de comenzar.</p><QRScanner required={true} onScanSuccess={() => handleQRScanSuccess()} /></div>
+        )}
+
+        {!isEditing && currentConfig?.sectorizado && grupoActual && (
+          <div className="border-2 border-purple-300 bg-purple-50 rounded-lg p-4"><div className="flex items-center gap-2 mb-3"><Building2 className="w-5 h-5 text-purple-600" /><h3 className="font-bold text-purple-800">QR Sector: {grupoActual}</h3></div><p className="text-sm text-purple-700 mb-3">Escaneá el QR del sector <strong>{grupoActual}</strong> para habilitar sus preguntas.</p><QRScanner required={true} onScanSuccess={handleQRScanSuccess} /><div className="mt-2 text-xs text-purple-600">Sectores completados: {validatedGroups.join(', ') || 'Ninguno'}</div></div>
+        )}
+
+        {currentConfig?.requireQR && !currentConfig.sectorizado && qrValidated && selectedSector && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2"><QrCode className="w-5 h-5 text-green-600" /><div><p className="font-medium text-green-800 text-sm">✅ QR Validado</p><p className="text-xs text-green-600">Sector: <strong>{selectedSector.name}</strong></p></div></div>
+        )}
+
+        {(isEditing || !currentConfig?.requireQR || qrValidated || currentConfig?.sectorizado) && currentConfig && currentConfig.questions && currentConfig.questions.length > 0 && (
+          <div className="space-y-4 border-t pt-4">
+            {currentConfig.sectorizado ? (
+              grupos.map(grupo => (
+                <div key={grupo} className={validatedGroups.includes(grupo) || isEditing ? '' : 'opacity-40 pointer-events-none'}>
+                  <div className="flex items-center gap-2 mb-2"><Building2 className="w-4 h-4 text-purple-600" /><h4 className="font-semibold text-purple-800">{grupo} {validatedGroups.includes(grupo) || isEditing ? '✅' : '🔒'}</h4></div>
+                  {[...currentConfig.questions].filter(q => q.group === grupo).sort((a, b) => (a.order || 0) - (b.order || 0)).map(q => (
+                    <div key={q.id} className="border rounded-lg p-4 bg-white mb-2">
+                      <div className="flex justify-between items-start mb-2"><div><p className="font-medium text-sm">{q.text}</p><p className="text-xs text-gray-500">{q.norma || currentConfig.norma} - {q.puntoNorma}</p>{q.esCriticoInocuidad && <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">🚨 Crítico</span>}</div></div>
+                      {q.instructions && <p className="text-xs text-gray-400 italic mb-2">📋 {q.instructions}</p>}
+                      <div className="flex flex-wrap gap-2 mb-2">{OPCIONES.map(op => (<button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }} className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{op.label}</button>))}</div>
+                      <div className="space-y-2">
+                        <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-3 py-1.5 border rounded text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} />
+                        <div><div className="flex gap-2 flex-wrap"><button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button><button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button></div><input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />{fotos[q.id] && fotos[q.id].length > 0 && (<div className="flex gap-2 mt-2 flex-wrap">{fotos[q.id].map((url, i) => (<div key={i} className="relative group"><img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" /><button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button></div>))}</div>)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            ) : (
+              [...currentConfig.questions].sort((a, b) => (a.order || 0) - (b.order || 0)).map(q => (
+                <div key={q.id} className={`border rounded-lg p-4 bg-white ${esChecklist && q.nivelRiesgoMunicipal ? RIESGO_COLORS[q.nivelRiesgoMunicipal] + ' border-l-4' : ''}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{q.text}</p>
+                        {esChecklist && q.nivelRiesgoMunicipal && (
+                          <span className={`text-xs font-bold ${q.nivelRiesgoMunicipal === 'critico' ? 'text-red-600' : q.nivelRiesgoMunicipal === 'medio' ? 'text-yellow-600' : 'text-blue-600'}`}>
+                            {RIESGO_LABELS[q.nivelRiesgoMunicipal]}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">{q.norma || currentConfig.norma} - {q.puntoNorma}</p>
+                      {q.esCriticoInocuidad && !esChecklist && (
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">🚨 Crítico</span>
+                      )}
+                    </div>
+                  </div>
+                  {q.instructions && <p className="text-xs text-gray-400 italic mb-2">📋 {q.instructions}</p>}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {esChecklist
+                      ? OPCIONES_CHECKLIST.map(op => (
+                          <button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                          >{op.label}</button>
+                        ))
+                      : OPCIONES.map(op => (
+                          <button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                          >{op.label}</button>
+                        ))
+                    }
+                  </div>
+                  <div className="space-y-2">
+                    <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)}
+                      placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'}
+                      className={`w-full px-3 py-1.5 border rounded text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`}
+                    />
+                    <div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]}
+                          className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300"
+                        >📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button>
+                        <button type="button" onClick={() => handleAddFotoUrl(q.id)}
+                          className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        >🔗 URL</button>
+                      </div>
+                      <input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment"
+                        onChange={(e) => handleFileChange(q.id, e)} className="hidden"
+                      />
+                      {fotos[q.id] && fotos[q.id].length > 0 && (
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          {fotos[q.id].map((url, i) => (
+                            <div key={i} className="relative group">
+                              <img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" />
+                              <button type="button" onClick={() => handleRemoveFoto(q.id, i)}
+                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        <div className="flex space-x-3 pt-4 border-t">
+          {isEditing && <button type="button" onClick={onCancelEdit} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">Cancelar</button>}
+          <button type="submit" disabled={saving} className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 font-medium">{saving ? 'Guardando...' : isEditing ? '💾 Guardar Cambios' : 'Finalizar'}</button>
+        </div>
+      </form>
     </div>
   );
 };

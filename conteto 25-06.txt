@@ -1,0 +1,176 @@
+⚡ Mientras se instala
+¿Querés que te pase la lista actualizada de pendientes de la app? Así vemos si hay algo más que podamos adelantar mientras baja Android Studio.
+
+si hace la lista actualizada y un contexto completo con todos los codigos que necesitas para seguir operando otro día. Todo lo que debería hacerter ñleer antes de propgramar
+Perfecto. Te genero el contexto completo para que lo pegues al inicio de una nueva conversación.
+
+📋 CONTEXTO COMPLETO — App "Todo en Regla"
+markdown
+# CONTEXTO COMPLETO — App "Todo en Regla"
+
+## 📱 DATOS DE LA APP
+
+| Concepto | Valor |
+|---|---|
+| Nombre app | **Todo en Regla** |
+| Package ID | `com.todoenregla.app` |
+| Descripción | Gestor de auditorías para BPM, IRAM y SSO |
+| Tecnología | React + TypeScript + Vite + Firebase + Capacitor |
+| Repositorio local | `C:\Users\Usuario\auditbpm` |
+| URL producción | `https://auditoriacalidad.netlify.app` |
+| Firebase proyecto | `auditbpm-backend` |
+
+---
+
+## 🤖 ROLES DE USUARIO
+
+| Rol | Descripción |
+|---|---|
+| `admin` | Todos los permisos, gestión total |
+| `auditor` | Ejecuta auditorías, ve sus resultados |
+| `gestor` | Crea auditorías, ve dashboard, exporta reportes |
+| `lector` | Solo ve dashboard y programación |
+| `operador` | Sin permisos (mínimo) |
+
+---
+
+## 🔐 SISTEMA DE PERMISOS GRANULARES
+
+### Permisos disponibles
+- `crear_auditoria`
+- `ejecutar_auditoria`
+- `ver_sus_auditorias`
+- `ver_todas_auditorias`
+- `exportar_reportes`
+- `gestionar_checklist`
+- `gestionar_usuarios`
+- `modificar_permisos`
+- `ver_dashboard`
+- `crear_sitio`
+- `editar_sitio`
+
+### Funcionamiento
+- Cada rol tiene permisos base definidos en `src/types/index.ts` → `ROLES_PERMISOS`
+- El admin puede sobrescribir permisos por usuario (overrides)
+- Los overrides pueden tener fecha de vencimiento
+- Si la fecha vence, los overrides se ignoran y vuelven los del rol base
+- El historial de cambios se guarda en colección `permisosHistorial`
+
+### Funciones clave
+- `tienePermiso(user, permiso)` → Verifica permiso (considera overrides y vencimiento)
+- `getPermisosEfectivos(user)` → Devuelve todos los permisos efectivos
+- `overridesVencidos(user)` → Verifica si los overrides expiraron
+- `getOrigenPermisos(user)` → Devuelve origen de cada permiso ('rol' | 'override')
+
+### Hook disponible
+- `usePermissions()` en `src/hooks/usePermissions.ts`
+  - `.can('permiso')` → boolean
+  - `.isAdmin`, `.canAuditar`, `.canGestionar`, etc.
+
+---
+
+## 🗄️ ARCHIVOS CLAVE DEL PROYECTO
+
+### Tipos y constantes
+- `src/types/index.ts` — User, UserRole, PermisoNombre, ROLES_PERMISOS, PERMISOS_LABELS, CambioPermiso, PermisoHistorial
+
+### Lógica de permisos
+- `src/utils/permissionChecker.ts` — tienePermiso(), getPermisosEfectivos(), overridesVencidos(), getOrigenPermisos()
+- `src/hooks/usePermissions.ts` — Hook para componentes
+
+### Contexto
+- `src/context/AuthContext.tsx` — AuthProvider, useAuth(), login, logout, carga de usuario con permisosOverride y fechaVencimientoOverrides
+- `src/context/AppContext.tsx` — AppProvider, useAppContext(), flags legacy (isAdmin, isGestor) + flags granulares (canGestionarUsuarios, canEjecutarAuditoria, etc.)
+
+### Componentes principales
+- `src/App.tsx` — Pestañas visibles según permisos granulares
+- `src/components/Users/UsersManager.tsx` — Gestión de usuarios con modal de permisos (tabs: Permisos + Historial) y campo de fecha de vencimiento
+- `src/components/Layout/Header.tsx` — Header con notificaciones (sin cambios por permisos)
+
+### Firebase
+- `src/firebase.ts` — Configuración, auth, firestore, storage
+- Reglas de Firestore — Guardadas en archivo `.txt` dentro del proyecto
+
+### Configuración Capacitor (Android)
+- `capacitor.config.ts` — Configuración de Capacitor
+- `android/` — Proyecto Android generado
+- `resources/icon.png` — Ícono 1024x1024
+
+---
+
+## 📦 DEPENDENCIAS INSTALADAS
+
+- React, TypeScript, Vite
+- Firebase (auth, firestore, storage)
+- Capacitor (core, cli, android, assets)
+- jsPDF, jspdf-autotable
+- xlsx, lucide-react
+- EmailJS
+
+---
+
+## 🔄 FLUJO DE PERMISOS
+
+1. Usuario hace login → AuthContext carga datos de Firestore
+2. Datos incluyen: `permisosOverride`, `overrideActivo`, `fechaVencimientoOverrides`
+3. `tienePermiso()` verifica:
+   - Si es admin → true
+   - Si overrideActivo y no venció y permiso definido → usa override
+   - Si no → usa ROLES_PERMISOS[rol]
+4. `App.tsx` usa permisos para mostrar/ocultar pestañas
+5. `AppContext` expone flags granulares para cualquier componente
+
+---
+
+## 📱 BUILD ANDROID — ESTADO ACTUAL
+
+| Paso | Estado |
+|---|---|
+| Instalar Capacitor | ✅ |
+| Configurar package ID | ✅ com.todoenregla.app |
+| Generar íconos | ✅ |
+| Build web (npm run build) | ✅ |
+| Sync android | ✅ |
+| Instalar Android Studio | ❌ Pendiente |
+| Build APK | ❌ Pendiente |
+
+---
+
+## ✅ FUNCIONALIDADES COMPLETADAS
+
+- [x] CRUD de usuarios con roles
+- [x] Sistema de permisos granulares
+- [x] Modal de edición de permisos (tildar/destildar)
+- [x] Columna "Permisos" con estados: Por rol / Personalizado / Vencido
+- [x] Historial de cambios de permisos
+- [x] Vencimiento de overrides (free trial)
+- [x] Pestañas de la app según permisos
+- [x] Asignación de sitios y cuestionarios por usuario
+- [x] Notificaciones, solicitudes, programación de auditorías
+- [x] Exportación de reportes
+
+---
+
+## 🔜 PENDIENTES
+
+| # | Tarea | Prioridad |
+|---|---|---|
+| 1 | Instalar Android Studio y generar APK | ALTA |
+| 2 | Publicar en Google Play ($25 USD una vez) | ALTA |
+| 3 | Landing page / Web de marketing | MEDIA |
+| 4 | Estrategia de marketing digital | MEDIA |
+| 5 | Restaurar KPIs NPS y Cumpl. Global en tablero de satisfacción (otro proyecto) | BAJA |
+| 6 | Probar vencimiento con usuario no-admin | BAJA |
+📁 Archivos que el asistente debe leer al iniciar
+src/types/index.ts
+
+src/utils/permissionChecker.ts
+
+src/components/Users/UsersManager.tsx
+
+src/context/AuthContext.tsx
+
+src/context/AppContext.tsx
+
+src/App.tsx
+

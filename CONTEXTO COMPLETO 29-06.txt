@@ -1,0 +1,161 @@
+CONTEXTO COMPLETO — App "Todo en Regla" (AuditBPM)
+📱 DATOS DE LA APP
+Concepto	Valor
+Nombre app	Todo en Regla
+Package ID	com.todoenregla.app
+Tecnología	React + TypeScript + Vite + Firebase + Capacitor
+Repositorio local	C:\Users\Usuario\auditbpm
+URL producción	https://auditoriacalidad.netlify.app
+Firebase proyecto	auditbpm-backend
+Landing page	C:\Users\Usuario\landing-todoenregla\index.html
+🤖 ROLES Y PERMISOS
+admin: Todo. Dashboard completo con semáforo, tendencias, reincidencia, histograma.
+
+auditor: Solo "Mis Métricas" (5 KPIs) + sus propias auditorías. Puede editar sus informes.
+
+gestor: Dashboard completo excepto gestión de usuarios.
+
+lector: Solo ve dashboard y programación.
+
+operador: Sin permisos.
+
+🔐 SISTEMA DE PERMISOS GRANULARES
+Archivo clave: src/utils/permissionChecker.ts → tienePermiso(user, permiso)
+
+ROLES_PERMISOS en src/types/index.ts
+
+Admin puede sobrescribir permisos por usuario con fecha de vencimiento (free trial)
+
+Historial de cambios en colección permisosHistorial
+
+Modal de edición en UsersManager.tsx con tabs: 🔒 Permisos | 📋 Historial
+
+🗄️ ARCHIVOS CLAVE
+src/types/index.ts — Todos los tipos (User, AuditRecord, Geolocalizacion, etc.)
+
+src/utils/permissionChecker.ts — Lógica de permisos
+
+src/context/AuthContext.tsx — Autenticación
+
+src/context/AppContext.tsx — Estado global
+
+src/App.tsx — Ruteo por pestañas según permisos
+
+src/firebase.ts — Configuración Firebase
+
+src/components/Audit/AuditForm.tsx — Crear/editar auditorías + geolocalización + compresión imágenes
+
+src/components/Audit/AuditDetail.tsx — Detalle con tabs: 📋 Detalle | 📝 Historial | Muestra geolocalización y establecimiento
+
+src/components/Dashboard/PlantDashboard.tsx — Dashboard con semáforo, tendencias, reincidencia, histograma
+
+src/components/Users/UsersManager.tsx — Gestión de usuarios + permisos
+
+src/utils/pdfGenerator.ts — Generación de PDF (versión actual con autoTable)
+
+📱 ANDROID
+Capacitor instalado y configurado
+
+npx cap open android para abrir Android Studio
+
+Build APK: Build → Build Bundle(s) / APK(s) → Build APK(s)
+
+🔥 FIRESTORE
+Colecciones: users, sites, audits, notifications, permisosHistorial, auditHistorial, etc.
+
+Reglas actualizadas: auditor puede editar sus propias auditorías
+
+Índices compuestos: permisosHistorial (userId+createdAt), auditHistorial (auditId+createdAt)
+
+✅ FUNCIONALIDADES COMPLETADAS
+CRUD de usuarios con roles y permisos granulares
+
+Modal de edición de permisos + historial + vencimiento (free trial)
+
+Dashboard simplificado por rol
+
+Semáforo de riesgo, tendencia de score, reincidencia de desvíos (NC + CP)
+
+Editar auditorías con historial de cambios (colección auditHistorial)
+
+Geolocalización automática al iniciar auditoría (solo funciona desde celular con GPS)
+
+Campo "Establecimiento" en el formulario de auditoría
+
+Compresión de imágenes antes de subir
+
+Landing page en landing-todoenregla/index.html
+
+Deploy en Netlify: https://auditoriacalidad.netlify.app
+
+📄 PDF GENERATOR — ESTADO ACTUAL (29/06/2026)
+Versión actual
+Archivo: src/utils/pdfGenerator.ts
+
+Librería: jspdf-autotable@5.0.8
+
+Usa autoTable para la sección de preguntas con:
+
+overflow: 'linebreak' en columnas de texto
+
+cellWidth fijos: #=10, Pregunta=55, Norma=35, Resultado=22, Comentario=55
+
+Colores de fondo según resultado (C/CP/NC/NA)
+
+Sin cellWidth: 'auto' en styles (se quitó para que respete columnStyles)
+
+Geolocalización en PDF
+Muestra coordenadas como texto (sin link para evitar warning de seguridad)
+
+Solo visible si la auditoría fue creada desde un celular con GPS
+
+Problemas conocidos
+Preguntas largas (ej. #5, #10, #11): El texto no hace wrap correctamente. Se corta a la derecha. Probado con múltiples configuraciones de cellWidth y overflow: 'linebreak' sin éxito hasta ahora.
+
+Comentarios largos: Mismo problema, no bajan de línea.
+
+Google Maps: Se quitó doc.textWithLink() porque generaba un warning de seguridad en el navegador al descargar el PDF.
+
+Doble validación para descargar: El navegador pide confirmación dos veces antes de descargar el informe PDF.
+
+Intentos realizados (todos fallidos)
+Ajustar preguntaWrapAncho (140, 165, 170, 175)
+
+Reducir fuente para preguntas largas (7.5)
+
+Cambiar badge de posición (arriba, abajo, izquierda)
+
+Usar wrapTextManual() con \n forzados
+
+Quitar cellWidth: 'auto' de styles
+
+Ajustar cellWidth de columnas (60, 55, 50)
+
+Layout vertical (badge abajo de la norma)
+
+🔜 PENDIENTES
+#	Tarea	Prioridad	Notas
+1	Arreglar wrap en PDF (preguntas largas no bajan de línea)	URGENTE	Preguntas 5, 10, 11 del BPM se cortan
+2	Build APK en Android Studio	ALTA	npx cap open android
+3	Deploy landing page a Netlify + conectar dominio todorenregla.com	ALTA	Carpeta landing-todoenregla
+4	Google Maps en PDF	MEDIA	Volver a agregar link sin warning de seguridad
+5	Doble validación al descargar PDF	BAJA	El navegador pide confirmación 2 veces
+6	Configurar PWA para iPhone	BAJA	Ícono en pantalla de inicio
+7	Ajustar criterio del semáforo de riesgo	BAJA	Incluir días sin auditar
+8	KPIs del tablero de satisfacción (otro proyecto)	BAJA	Archivo HTML grande
+🖥️ COMANDOS ÚTILES
+bash
+cd C:\Users\Usuario\auditbpm
+npm run dev              # Desarrollo
+npx vite --host 0.0.0.0 --port 5173  # Acceso desde celu
+npm run build            # Build producción
+npx netlify-cli deploy --prod --dir=dist  # Deploy
+npx cap open android     # Abrir Android Studio
+🔑 DATOS DE PRUEBA
+Admin: admin@tudominio.com
+
+URL local: http://localhost:5173
+
+URL producción: https://auditoriacalidad.netlify.app
+
+Netlify créditos: 285 restantes (15 por deploy)

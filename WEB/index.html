@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TodoEnRegla | Auditorías BPM, IRAM y Seguridad desde tu celular</title>
+    <meta name="description" content="Realizá auditorías BPM, IRAM y de seguridad desde tu celular. Checklist automático, informes PDF, fotos, QR y seguimiento de acciones correctivas. Probá gratis.">
+    <link rel="icon" type="image/png" href="https://i.imgur.com/Uc2DpWP.png">
+    <link rel="apple-touch-icon" href="https://i.imgur.com/Uc2DpWP.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; color: #2d3436; background: #f8f9fa; line-height: 1.6; }
+        h1, h2, h3, h4 { font-family: 'Poppins', sans-serif; }
+        .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+        .text-center { text-align: center; }
+        .highlight { color: #00b894; font-weight: 700; }
+        .accent { color: #00b894; }
+
+        /* NAVBAR */
+        .navbar { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); box-shadow: 0 2px 20px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 1000; }
+        .navbar .container { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; padding-bottom: 10px; }
+        .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .logo img { height: 44px; width: 44px; object-fit: contain; }
+        .logo-text { font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 800; color: #1a2a6c; letter-spacing: -0.5px; }
+        .nav-links { display: flex; align-items: center; gap: 24px; list-style: none; }
+        .nav-links a { text-decoration: none; color: #2d3436; font-weight: 500; font-size: 0.9rem; transition: color 0.2s; }
+        .nav-links a:hover { color: #1a2a6c; }
+        .btn-nav { background: #00b894; color: white !important; padding: 10px 22px; border-radius: 50px; font-weight: 600 !important; font-size: 0.9rem !important; }
+        .btn-nav:hover { background: #00a381 !important; }
+        .hamburger { display: none; background: none; border: none; font-size: 1.5rem; color: #1a2a6c; cursor: pointer; }
+
+        /* HERO */
+        .hero { background: linear-gradient(135deg, #0f1a3a 0%, #1a2a6c 40%, #1e4db5 100%); padding: 80px 0 60px; color: white; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -20%; right: -5%; width: 400px; height: 400px; background: rgba(0,180,130,0.08); border-radius: 50%; }
+        .hero .container { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; position: relative; z-index: 1; }
+        .hero h1 { font-size: 2.6rem; font-weight: 800; line-height: 1.2; margin-bottom: 14px; }
+        .hero .subtitle { font-size: 1.1rem; opacity: 0.9; margin-bottom: 20px; font-family: 'Inter', sans-serif; }
+        .hero-benefits { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+        .hero-benefits span { background: rgba(255,255,255,0.12); padding: 6px 14px; border-radius: 50px; font-size: 0.8rem; font-weight: 500; }
+        .hero-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn-primary, .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 26px; border-radius: 50px; font-weight: 600; font-size: 0.95rem; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; }
+        .btn-primary { background: #00b894; color: white; box-shadow: 0 6px 20px rgba(0,180,130,0.3); }
+        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,180,130,0.4); }
+        .btn-secondary { background: rgba(255,255,255,0.12); color: white; border: 2px solid rgba(255,255,255,0.25); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.2); }
+        .phone-mock { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+        .phone-mock img { width: 140px; height: 280px; object-fit: cover; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.2); }
+        .phone-mock .mock-2 { transform: translateY(20px); }
+        .phone-mock .mock-3 { transform: translateY(40px); }
+
+        /* SECTIONS */
+        section { padding: 70px 0; }
+        .section-title { text-align: center; margin-bottom: 48px; }
+        .section-title h2 { font-size: 2rem; font-weight: 700; color: #1a2a6c; }
+        .section-title p { color: #636e72; margin-top: 6px; font-size: 1rem; }
+
+        /* QUIÉNES */
+        .who-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .who-card { background: white; border-radius: 16px; padding: 24px 16px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.04); transition: transform 0.2s; }
+        .who-card:hover { transform: translateY(-4px); }
+        .who-card i { font-size: 2.2rem; color: #00b894; margin-bottom: 10px; }
+        .who-card h4 { color: #1a2a6c; font-size: 0.95rem; }
+
+        /* PROCESO */
+        .process-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; }
+        .process-card { text-align: center; }
+        .process-card i { font-size: 2rem; color: #1a2a6c; margin-bottom: 8px; }
+        .process-card h4 { font-size: 0.85rem; color: #1a2a6c; }
+
+        /* BENEFITS */
+        .benefits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .benefit-card { background: white; border-radius: 16px; padding: 24px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); display: flex; align-items: flex-start; gap: 14px; }
+        .benefit-card i { font-size: 1.6rem; color: #00b894; margin-top: 2px; }
+        .benefit-card h4 { color: #1a2a6c; font-size: 0.95rem; margin-bottom: 4px; }
+        .benefit-card p { font-size: 0.8rem; color: #636e72; }
+
+        /* RESULTS */
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+        .result-card { background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+        .result-card i { font-size: 1.8rem; color: #00b894; margin-bottom: 6px; }
+        .result-card p { font-size: 0.85rem; color: #636e72; }
+
+        /* PRICING */
+        .pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .price-card { background: white; border-radius: 16px; padding: 22px 12px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 2px solid transparent; transition: transform 0.2s; position: relative; display: flex; flex-direction: column; justify-content: space-between; }
+        .price-card:hover { transform: translateY(-4px); }
+        .price-card.featured { border-color: #00b894; }
+        .badge { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #f9ca24; color: #1a2a6c; padding: 4px 12px; border-radius: 50px; font-size: 0.6rem; font-weight: 700; white-space: nowrap; }
+        .price-card h3 { font-size: 0.9rem; color: #1a2a6c; margin-bottom: 4px; }
+        .price { font-size: 1.3rem; font-weight: 800; color: #1a2a6c; }
+        .price span { font-size: 0.6rem; font-weight: 400; color: #636e72; display: block; }
+        .price-card ul { list-style: none; margin: 8px 0; text-align: left; font-size: 0.68rem; flex-grow: 1; }
+        .price-card ul li { padding: 2px 0; }
+        .price-card ul li i { color: #00b894; margin-right: 4px; font-size: 0.6rem; }
+        .btn-price { display: inline-block; padding: 8px 16px; border-radius: 50px; font-weight: 600; text-decoration: none; margin-top: 6px; font-size: 0.7rem; }
+        .btn-outline { border: 2px solid #1a2a6c; color: #1a2a6c; }
+        .btn-filled { background: #00b894; color: white; }
+        .btn-filled:hover { transform: translateY(-2px); }
+        .pricing-footer { text-align: center; margin-top: 20px; font-size: 0.8rem; color: #636e72; }
+        .pricing-footer span { margin: 0 10px; }
+
+        /* CONTACTO */
+        .contact-wrapper { max-width: 480px; margin: 0 auto; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        .contact-wrapper input, .contact-wrapper textarea { width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 12px; font-family: 'Inter', sans-serif; font-size: 0.9rem; margin-bottom: 12px; transition: border-color 0.2s; }
+        .contact-wrapper input:focus, .contact-wrapper textarea:focus { outline: none; border-color: #2d8cff; }
+        .contact-wrapper button { width: 100%; padding: 14px; background: #00b894; color: white; border: none; border-radius: 50px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        .contact-wrapper button:hover { background: #00a381; }
+        .form-success { display: none; text-align: center; color: #00b894; font-weight: 600; }
+
+        /* FOOTER */
+        footer { background: #1a2a6c; color: white; padding: 32px 0; text-align: center; }
+        footer p { opacity: 0.7; font-size: 0.8rem; }
+        footer a { color: #00b894; text-decoration: none; margin: 0 8px; font-size: 0.8rem; }
+
+        /* RESPONSIVE */
+        @media (max-width: 900px) { .pricing-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .nav-links { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: white; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); gap: 12px; }
+            .nav-links.active { display: flex; }
+            .hamburger { display: block; }
+            .hero .container { grid-template-columns: 1fr; text-align: center; }
+            .hero h1 { font-size: 1.9rem; }
+            .hero-buttons { justify-content: center; }
+            .phone-mock { display: none; }
+            .hero { padding: 50px 0 30px; }
+            section { padding: 40px 0; }
+            .section-title h2 { font-size: 1.5rem; }
+            .pricing-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="#" class="logo">
+                <img src="https://i.imgur.com/Uc2DpWP.png" alt="TodoEnRegla">
+                <span class="logo-text">Todo<span class="accent">En</span>Regla</span>
+            </a>
+            <button class="hamburger" onclick="document.querySelector('.nav-links').classList.toggle('active')">☰</button>
+            <ul class="nav-links">
+                <li><a href="#quienes">¿Para quién?</a></li>
+                <li><a href="#proceso">Proceso</a></li>
+                <li><a href="#precios">Planes</a></li>
+                <li><a href="#contacto" class="btn-nav">Solicitar Acceso</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero" id="inicio">
+        <div class="container">
+            <div>
+                <h1>Auditorías BPM, IRAM y de Seguridad desde tu celular</h1>
+                <p class="subtitle">Checklist automáticos, fotos, QR, informes PDF y seguimiento de acciones correctivas. Todo en una plataforma.</p>
+                <div class="hero-benefits">
+                    <span>✅ Android y Web</span>
+                    <span>📄 Informes PDF</span>
+                    <span>📸 Evidencias fotográficas</span>
+                    <span>📍 Sectores con QR</span>
+                </div>
+                <div class="hero-buttons">
+                    <a href="#contacto" class="btn-primary"><i class="fa-solid fa-rocket"></i> Probar Gratis 7 Días</a>
+                    <a href="https://auditoriacalidad.netlify.app" class="btn-secondary" target="_blank"><i class="fa-solid fa-globe"></i> Versión Web</a>
+                </div>
+            </div>
+            <div class="phone-mock">
+                <img src="https://i.imgur.com/Uc2DpWP.png" alt="Dashboard">
+                <img src="https://i.imgur.com/Uc2DpWP.png" alt="Auditoría" class="mock-2">
+                <img src="https://i.imgur.com/Uc2DpWP.png" alt="PDF" class="mock-3">
+            </div>
+        </div>
+    </section>
+
+    <!-- ¿PARA QUIÉN? -->
+    <section id="quienes" style="background: white;">
+        <div class="container">
+            <div class="section-title">
+                <h2>¿Quiénes usan TodoEnRegla?</h2>
+                <p>Comercios y empresas que necesitan estar al día con sus obligaciones</p>
+            </div>
+            <div class="who-grid">
+                <div class="who-card"><i class="fa-solid fa-industry"></i><h4>Industrias Alimenticias</h4></div>
+                <div class="who-card"><i class="fa-solid fa-utensils"></i><h4>Restaurantes</h4></div>
+                <div class="who-card"><i class="fa-solid fa-shop"></i><h4>Panaderías</h4></div>
+                <div class="who-card"><i class="fa-solid fa-building"></i><h4>Empresas IRAM</h4></div>
+                <div class="who-card"><i class="fa-solid fa-school"></i><h4>Comedores</h4></div>
+                <div class="who-card"><i class="fa-solid fa-truck"></i><h4>Distribuidoras</h4></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROCESO -->
+    <section id="proceso">
+        <div class="container">
+            <div class="section-title">
+                <h2>Todo en una sola plataforma</h2>
+                <p>Desde el checklist hasta el informe final, sin salir de la app</p>
+            </div>
+            <div class="process-grid">
+                <div class="process-card"><i class="fa-solid fa-list-check"></i><h4>📋 Checklist</h4></div>
+                <div class="process-card"><i class="fa-solid fa-camera"></i><h4>📷 Fotos</h4></div>
+                <div class="process-card"><i class="fa-solid fa-qrcode"></i><h4>📍 Sectores QR</h4></div>
+                <div class="process-card"><i class="fa-solid fa-file-pdf"></i><h4>📄 PDF</h4></div>
+                <div class="process-card"><i class="fa-solid fa-chart-line"></i><h4>📊 Indicadores</h4></div>
+                <div class="process-card"><i class="fa-solid fa-bell"></i><h4>📧 Alertas</h4></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BENEFICIOS -->
+    <section style="background: white;">
+        <div class="container">
+            <div class="section-title">
+                <h2>Lo que obtenés</h2>
+                <p>Beneficios reales para tu negocio</p>
+            </div>
+            <div class="benefits-grid">
+                <div class="benefit-card"><i class="fa-solid fa-bolt"></i><div><h4>Auditorías más rápidas</h4><p>Completá checklists en minutos, no en horas.</p></div></div>
+                <div class="benefit-card"><i class="fa-solid fa-file-invoice"></i><div><h4>Informes profesionales</h4><p>PDF listos para presentar.</p></div></div>
+                <div class="benefit-card"><i class="fa-solid fa-clock-rotate-left"></i><div><h4>Historial completo</h4><p>Todas tus auditorías guardadas.</p></div></div>
+                <div class="benefit-card"><i class="fa-solid fa-check-to-slot"></i><div><h4>Seguimiento de acciones</h4><p>Corregí desvíos y hacé seguimiento.</p></div></div>
+                <div class="benefit-card"><i class="fa-solid fa-leaf"></i><div><h4>Menos papel</h4><p>Todo digital, sin planillas.</p></div></div>
+                <div class="benefit-card"><i class="fa-solid fa-shield-check"></i><div><h4>Mayor cumplimiento</h4><p>Dormí tranquilo con las inspecciones.</p></div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RESULTADOS -->
+    <section>
+        <div class="container">
+            <div class="section-title">
+                <h2>Resultados que se ven</h2>
+            </div>
+            <div class="results-grid">
+                <div class="result-card"><i class="fa-solid fa-clock"></i><p><strong>70%</strong> más rápido</p></div>
+                <div class="result-card"><i class="fa-solid fa-file"></i><p><strong>0</strong> papeles</p></div>
+                <div class="result-card"><i class="fa-solid fa-mobile"></i><p><strong>100%</strong> digital</p></div>
+                <div class="result-card"><i class="fa-solid fa-check-circle"></i><p><strong>+50</strong> comercios</p></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRECIOS -->
+    <section id="precios" style="background: white;">
+        <div class="container">
+            <div class="section-title">
+                <h2>Planes simples</h2>
+                <p>Elegí el que mejor se adapte a tu negocio</p>
+            </div>
+            <div class="pricing-grid">
+                <div class="price-card">
+                    <div class="badge">Sin costo</div>
+                    <h3>Prueba Gratis</h3>
+                    <div class="price">$0<span>/7 días</span></div>
+                    <ul>
+                        <li><i class="fa-solid fa-check"></i> Acceso completo</li>
+                        <li><i class="fa-solid fa-check"></i> 1 usuario</li>
+                        <li><i class="fa-solid fa-check"></i> Checklist Municipal</li>
+                        <li><i class="fa-solid fa-check"></i> Checklist BPM</li>
+                    </ul>
+                    <a href="#contacto" class="btn-price btn-outline">Empezar</a>
+                </div>
+                <div class="price-card">
+                    <h3>Básico</h3>
+                    <div class="price">$30.000<span>/mes</span></div>
+                    <ul>
+                        <li><i class="fa-solid fa-check"></i> 1 Auditor</li>
+                        <li><i class="fa-solid fa-check"></i> 1 sitio</li>
+                        <li><i class="fa-solid fa-check"></i> Checklist Municipal</li>
+                        <li><i class="fa-solid fa-check"></i> Checklist BPM</li>
+                        <li><i class="fa-solid fa-check"></i> Reportes PDF</li>
+                    </ul>
+                    <a href="#contacto" class="btn-price btn-outline">Comenzar</a>
+                </div>
+                <div class="price-card featured">
+                    <div class="badge">Más Popular</div>
+                    <h3>Empresa</h3>
+                    <div class="price">$50.000<span>/mes</span></div>
+                    <ul>
+                        <li><i class="fa-solid fa-check"></i> <strong>1 Gestor</strong></li>
+                        <li><i class="fa-solid fa-check"></i> Sitios ilimitados</li>
+                        <li><i class="fa-solid fa-check"></i> Sectores QR</li>
+                        <li><i class="fa-solid fa-check"></i> ISO 9001 Interno</li>
+                        <li><i class="fa-solid fa-check"></i> Notificaciones email</li>
+                    </ul>
+                    <a href="#contacto" class="btn-price btn-filled">Quiero este</a>
+                </div>
+                <div class="price-card">
+                    <div class="badge">Exclusivo</div>
+                    <h3>Premium</h3>
+                    <div class="price">$100.000<span>/mes</span></div>
+                    <ul>
+                        <li><i class="fa-solid fa-check"></i> <strong>Gestor + 3 Auditores</strong></li>
+                        <li><i class="fa-solid fa-check"></i> Auditoría externa</li>
+                        <li><i class="fa-solid fa-check"></i> Sitios ilimitados</li>
+                        <li><i class="fa-solid fa-check"></i> Dashboard métricas</li>
+                        <li><i class="fa-solid fa-check"></i> Capacitación incluida</li>
+                    </ul>
+                    <a href="#contacto" class="btn-price btn-filled">Quiero este</a>
+                </div>
+            </div>
+            <div class="pricing-footer">
+                <span>✔ Sin permanencia</span>
+                <span>✔ Cancelás cuando quieras</span>
+                <span>✔ Actualizaciones incluidas</span>
+                <span>✔ Soporte técnico</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACTO -->
+    <section id="contacto">
+        <div class="container">
+            <div class="section-title">
+                <h2>Solicitá acceso</h2>
+                <p>Dejanos tus datos y empezá tu prueba gratis</p>
+            </div>
+            <div class="contact-wrapper">
+                <form id="contactForm">
+                    <input type="text" id="nombre" placeholder="Nombre completo *" required>
+                    <input type="text" id="empresa" placeholder="Nombre de tu negocio">
+                    <input type="email" id="email" placeholder="Email *" required>
+                    <button type="submit">Solicitar Acceso</button>
+                </form>
+                <div class="form-success" id="formSuccess">
+                    <i class="fa-solid fa-circle-check fa-2x"></i>
+                    <p>¡Gracias! Te contactaremos pronto.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <p>
+                <a href="mailto:contacto@todoenregla.com">📧 contacto@todoenregla.com</a>
+            </p>
+            <p style="margin-top: 8px;">
+                <a href="#">Política de Privacidad</a>
+                <a href="#">Términos de Uso</a>
+            </p>
+            <p style="margin-top: 8px;">© 2026 TodoEnRegla. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('contactForm').style.display = 'none';
+            document.getElementById('formSuccess').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
