@@ -15,7 +15,11 @@ import {
   serverTimestamp,
   writeBatch,
   limit,
-  setDoc
+  setDoc,
+  arrayUnion,
+  arrayRemove,
+  increment,
+  runTransaction
 } from 'firebase/firestore';
 import {
   getAuth,
@@ -43,7 +47,13 @@ import type {
   RecurrenceResult,
   Notificacion,
   Solicitud,
-  Requisito
+  Requisito,
+  OfflineAudit,
+  AlertaConfig,
+  TipoCuestionario,
+  PreguntaGestion,
+  TipoPreguntaGestion,
+  OpcionMultipleChoice
 } from './types';
 
 const firebaseConfig = {
@@ -106,9 +116,36 @@ export const resetUserPassword = async (email: string) => {
 // USUARIOS
 // ============================================
 
-export const createUserInFirestore = async (uid: string, email: string, role: UserRole, displayName: string): Promise<void> => {
-  const userRef = doc(db, 'users', uid);
-  await setDoc(userRef, { uid, email, role, displayName, assignedSites: [], assignedQuestionnaires: [], active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+export const createUserInFirestore = async (
+  uid: string,
+  email: string,
+  role: UserRole = 'lector',
+  displayName?: string
+) => {
+  try {
+    const userRef = doc(db, 'users', uid);
+    await setDoc(userRef, {
+      uid,
+      email,
+      role,
+      displayName: displayName || email,
+      assignedSites: [],
+      assignedQuestionnaires: [],
+      active: true,
+      isTrial: true,
+      trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      plan: 'trial',
+      termsAccepted: false,
+      termsVersion: '',
+      termsAcceptedAt: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    console.log('✅ Usuario creado en Firestore:', email);
+  } catch (error) {
+    console.error('Error creando usuario en Firestore:', error);
+    throw error;
+  }
 };
 
 export const getUserData = async (uid: string): Promise<User | null> => {
@@ -116,7 +153,7 @@ export const getUserData = async (uid: string): Promise<User | null> => {
   const userSnap = await getDoc(userRef);
   if (userSnap.exists()) {
     const data = userSnap.data();
-    return { uid: data.uid || uid, email: data.email || '', role: data.role || 'lector', displayName: data.displayName || data.name || '', assignedSites: data.assignedSites || [], active: data.active !== false, trialEndsAt: data.trialEndsAt || null, createdAt: data.createdAt, updatedAt: data.updatedAt } as User;
+    return { uid: data.uid || uid, email: data.email || '', role: data.role || 'lector', displayName: data.displayName || data.name || '', assignedSites: data.assignedSites || [], assignedQuestionnaires: data.assignedQuestionnaires || [], active: data.active !== false, trialEndsAt: data.trialEndsAt || null, permisosOverride: data.permisosOverride || {}, overrideActivo: data.overrideActivo || false, permisosActualizadosPor: data.permisosActualizadosPor || null, permisosActualizadosEn: data.permisosActualizadosEn || null, fechaVencimientoOverrides: data.fechaVencimientoOverrides || null, empresaId: data.empresaId || null, createdAt: data.createdAt, updatedAt: data.updatedAt, termsAccepted: data.termsAccepted || false, termsVersion: data.termsVersion || '', termsAcceptedAt: data.termsAcceptedAt || null, isTrial: data.isTrial || false, plan: data.plan || 'trial' } as User;
   }
   return null;
 };
@@ -125,7 +162,10 @@ export const getAllUsers = async (): Promise<User[]> => {
   const usersRef = collection(db, 'users');
   const q = query(usersRef, where('active', '==', true));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as User));
+  return querySnapshot.docs.map(doc => {
+    const data = doc.data();
+    return { uid: doc.id, ...data } as User;
+  });
 };
 
 export const updateUserRole = async (uid: string, role: UserRole): Promise<void> => {
@@ -151,6 +191,60 @@ export const getUserSites = async (userId: string): Promise<string[]> => {
   const userDoc = await getDoc(doc(db, 'users', userId));
   if (userDoc.exists()) return userDoc.data().assignedSites || [];
   return [];
+};
+
+export const getUsersBySites = async (siteIds: string[]): Promise<User[]> => {
+  if (!siteIds || siteIds.length === 0) return [];
+  
+  try {
+    const usersRef = collection(db, 'users');
+    const users: User[] = [];
+    
+    const chunks: string[][] = [];
+    for (let i = 0; i < siteIds.length; i += 10) {
+      chunks.push(siteIds.slice(i, i + 10));
+    }
+    
+    for (const chunk of chunks) {
+      const q = query(usersRef, where('assignedSites', 'array-contains-any', chunk));
+      const snapshot = await getDocs(q);
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        users.push({
+          uid: doc.id,
+          email: data.email || '',
+          role: data.role || 'lector',
+          displayName: data.displayName || data.name || '',
+          assignedSites: data.assignedSites || [],
+          assignedQuestionnaires: data.assignedQuestionnaires || [],
+          active: data.active !== false,
+          trialEndsAt: data.trialEndsAt || null,
+          permisosOverride: data.permisosOverride || {},
+          overrideActivo: data.overrideActivo || false,
+          permisosActualizadosPor: data.permisosActualizadosPor || null,
+          permisosActualizadosEn: data.permisosActualizadosEn || null,
+          fechaVencimientoOverrides: data.fechaVencimientoOverrides || null,
+          empresaId: data.empresaId || null,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          termsAccepted: data.termsAccepted || false,
+          termsVersion: data.termsVersion || '',
+          termsAcceptedAt: data.termsAcceptedAt || null,
+          isTrial: data.isTrial || false,
+          plan: data.plan || 'trial'
+        });
+      });
+    }
+    
+    const uniqueUsers = users.filter((u, index, self) => 
+      index === self.findIndex(t => t.uid === u.uid)
+    );
+    
+    return uniqueUsers;
+  } catch (error) {
+    console.error('Error obteniendo usuarios por sitios:', error);
+    return [];
+  }
 };
 
 // ============================================
@@ -252,6 +346,56 @@ export const updateQuestionnaire = async (id: string, updates: Partial<Questionn
 };
 
 export const deleteQuestionnaire = async (id: string): Promise<void> => {
+  const questionnaireRef = doc(db, 'questionnaires', id);
+  await updateDoc(questionnaireRef, { active: false, updatedAt: serverTimestamp() });
+};
+
+// ✅ NUEVAS FUNCIONES CON VERIFICACIÓN DE PERMISOS
+export const updateQuestionnaireWithPermisos = async (
+  id: string,
+  updates: Partial<QuestionnaireConfig>,
+  user: User
+): Promise<void> => {
+  // Verificar que el usuario tenga permisos para modificar este cuestionario
+  if (user.role !== 'admin') {
+    const questionnaireRef = doc(db, 'questionnaires', id);
+    const qSnap = await getDoc(questionnaireRef);
+    if (!qSnap.exists()) throw new Error('Cuestionario no encontrado');
+    
+    const qData = qSnap.data();
+    const sitioIds = qData.sitioIds || [];
+    const assignedSites = user.assignedSites || [];
+    
+    const tienePermiso = sitioIds.some(siteId => assignedSites.includes(siteId));
+    if (!tienePermiso) {
+      throw new Error('No tenés permiso para modificar este cuestionario');
+    }
+  }
+  
+  const questionnaireRef = doc(db, 'questionnaires', id);
+  await updateDoc(questionnaireRef, { ...updates, updatedAt: serverTimestamp() });
+};
+
+export const deleteQuestionnaireWithPermisos = async (
+  id: string,
+  user: User
+): Promise<void> => {
+  // Misma verificación que updateQuestionnaireWithPermisos
+  if (user.role !== 'admin') {
+    const questionnaireRef = doc(db, 'questionnaires', id);
+    const qSnap = await getDoc(questionnaireRef);
+    if (!qSnap.exists()) throw new Error('Cuestionario no encontrado');
+    
+    const qData = qSnap.data();
+    const sitioIds = qData.sitioIds || [];
+    const assignedSites = user.assignedSites || [];
+    
+    const tienePermiso = sitioIds.some(siteId => assignedSites.includes(siteId));
+    if (!tienePermiso) {
+      throw new Error('No tenés permiso para eliminar este cuestionario');
+    }
+  }
+  
   const questionnaireRef = doc(db, 'questionnaires', id);
   await updateDoc(questionnaireRef, { active: false, updatedAt: serverTimestamp() });
 };
@@ -574,8 +718,14 @@ export const createTrialUser = async (nombre: string, email: string, password: s
     role: 'auditor',
     displayName: nombre,
     assignedSites: [siteId],
+    assignedQuestionnaires: [],
     active: true,
+    isTrial: true,
     trialEndsAt,
+    plan: 'trial',
+    termsAccepted: false,
+    termsVersion: '',
+    termsAcceptedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -618,4 +768,157 @@ export const getTrialDaysLeft = (trialEndsAt: any): number => {
   const ahora = new Date();
   const diff = Math.ceil((end.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(0, diff);
+};
+
+// ============================================
+// ALERTAS CONFIGURABLES
+// ============================================
+
+export const getAlertasConfig = async (): Promise<AlertaConfig[]> => {
+  try {
+    const alertasRef = collection(db, 'alertasConfig');
+    const snapshot = await getDocs(alertasRef);
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as AlertaConfig))
+      .filter(a => a.activo !== false);
+  } catch (error: any) {
+    console.warn('Error cargando alertas:', error.message);
+    return [];
+  }
+};
+
+export const createAlertaConfig = async (data: Omit<AlertaConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  const alertasRef = collection(db, 'alertasConfig');
+  const docRef = await addDoc(alertasRef, { ...data, activo: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  return docRef.id;
+};
+
+export const updateAlertaConfig = async (id: string, updates: Partial<AlertaConfig>): Promise<void> => {
+  const alertaRef = doc(db, 'alertasConfig', id);
+  await updateDoc(alertaRef, { ...updates, updatedAt: serverTimestamp() });
+};
+
+export const deleteAlertaConfig = async (id: string): Promise<void> => {
+  const alertaRef = doc(db, 'alertasConfig', id);
+  await updateDoc(alertaRef, { activo: false, updatedAt: serverTimestamp() });
+};
+
+// ============================================
+// OFFLINE - ETAPA 1
+// ============================================
+
+const OFFLINE_STORAGE_KEY = 'auditbpm_offline_audits';
+
+export const saveAuditOffline = (audit: OfflineAudit): void => {
+  try {
+    const existing = getOfflineAudits();
+    const index = existing.findIndex(a => a.id === audit.id);
+    if (index >= 0) {
+      existing[index] = audit;
+    } else {
+      existing.push(audit);
+    }
+    localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(existing));
+    console.log(`[Offline] Auditoría guardada localmente: ${audit.questionnaireName}`);
+  } catch (error) {
+    console.error('[Offline] Error guardando auditoría:', error);
+  }
+};
+
+export const getOfflineAudits = (): OfflineAudit[] => {
+  try {
+    const data = localStorage.getItem(OFFLINE_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('[Offline] Error leyendo auditorías offline:', error);
+    return [];
+  }
+};
+
+export const getPendingSyncCount = (): number => {
+  return getOfflineAudits().filter(a => !a.sincronizado).length;
+};
+
+export const syncOfflineAudits = async (): Promise<{ sincronizados: number; errores: number }> => {
+  const offlineAudits = getOfflineAudits().filter(a => !a.sincronizado);
+  
+  if (offlineAudits.length === 0) {
+    console.log('[Offline] No hay auditorías pendientes de sincronizar');
+    return { sincronizados: 0, errores: 0 };
+  }
+
+  console.log(`[Offline] Sincronizando ${offlineAudits.length} auditorías...`);
+  let sincronizados = 0;
+  let errores = 0;
+
+  for (const offlineAudit of offlineAudits) {
+    try {
+      const auditData = {
+        siteId: offlineAudit.siteId,
+        siteName: offlineAudit.siteName,
+        questionnaireId: offlineAudit.questionnaireId,
+        questionnaireName: offlineAudit.questionnaireName,
+        tipoCuestionario: offlineAudit.tipoCuestionario,
+        norma: '',
+        auditorId: offlineAudit.auditorId,
+        auditorEmail: offlineAudit.auditorEmail,
+        auditorName: offlineAudit.auditorName,
+        responses: offlineAudit.respuestas.map(r => ({
+          questionId: r.questionId,
+          questionText: r.questionText,
+          questionType: r.tipoPregunta || 'texto',
+          puntoNorma: '',
+          norma: '',
+          esCriticoInocuidad: false,
+          nivelDesvio: 'ninguno' as const,
+          valor: r.valor,
+          comentario: r.comentario,
+          photoURLs: r.photoURLs,
+          responseTimeSeconds: 0,
+          startedAt: new Date(offlineAudit.startedAt),
+          completedAt: new Date(offlineAudit.completedAt)
+        })),
+        score: offlineAudit.score,
+        totalAplicables: offlineAudit.respuestas.length,
+        totalCumplen: 0,
+        totalCumplenParcial: 0,
+        totalNoCumplen: 0,
+        totalNoAplica: 0,
+        criticosNC: 0,
+        clasificacion: offlineAudit.clasificacion,
+        recurrenciaDetectada: false,
+        recurrenciaDetalle: '',
+        desviosSistematicos: [],
+        startedAt: new Date(offlineAudit.startedAt),
+        completedAt: new Date(offlineAudit.completedAt),
+        durationMinutes: Math.ceil((new Date(offlineAudit.completedAt).getTime() - new Date(offlineAudit.startedAt).getTime()) / 60000),
+        status: 'completed' as const,
+        geolocalizacion: offlineAudit.geolocalizacion || null,
+        establecimiento: offlineAudit.establecimiento || null,
+        observacionesGenerales: offlineAudit.observacionesGenerales || null
+      };
+
+      await createAudit(auditData as any);
+      
+      offlineAudit.sincronizado = true;
+      sincronizados++;
+      console.log(`[Offline] ✅ Sincronizada: ${offlineAudit.questionnaireName}`);
+    } catch (error) {
+      console.error(`[Offline] ❌ Error sincronizando auditoría ${offlineAudit.id}:`, error);
+      errores++;
+    }
+  }
+
+  try {
+    const updated = getOfflineAudits().map(a => {
+      const synced = offlineAudits.find(o => o.id === a.id && o.sincronizado);
+      return synced ? { ...a, sincronizado: true } : a;
+    });
+    localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(updated));
+  } catch (error) {
+    console.error('[Offline] Error actualizando localStorage:', error);
+  }
+
+  console.log(`[Offline] Sincronización completada: ${sincronizados} éxitos, ${errores} errores`);
+  return { sincronizados, errores };
 };

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { tienePermiso } from '../utils/permissionChecker';
-import { db, getUserData } from '../firebase';
+import { db } from '../firebase';
 import {
   collection,
   query,
@@ -15,12 +15,10 @@ import { Site, QuestionnaireConfig, AuditRecord } from '../types';
 
 interface AppState {
   isAuthenticated: boolean;
-  // Flags legacy - se mantienen para retrocompatibilidad
   isAdmin: boolean;
   isAuditor: boolean;
   isGestor: boolean;
   isLector: boolean;
-  // NUEVOS - Permisos granulares
   canGestionarUsuarios: boolean;
   canModificarPermisos: boolean;
   canEjecutarAuditoria: boolean;
@@ -32,7 +30,6 @@ interface AppState {
   canEditarSitio: boolean;
   canVerTodasAuditorias: boolean;
   canVerSusAuditorias: boolean;
-  // Datos
   sites: Site[];
   questionnaires: QuestionnaireConfig[];
   audits: AuditRecord[];
@@ -62,17 +59,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const isAuthenticated = !!user;
 
-  // ============================================================
-  // FLAGS LEGACY (retrocompatibilidad)
-  // ============================================================
   const isAdmin = user?.role === 'admin';
   const isAuditor = user?.role === 'auditor';
   const isGestor = user?.role === 'gestor';
   const isLector = user?.role === 'lector';
 
-  // ============================================================
-  // NUEVOS FLAGS GRANULARES (usando tienePermiso)
-  // ============================================================
   const canGestionarUsuarios = tienePermiso(user, 'gestionar_usuarios');
   const canModificarPermisos = tienePermiso(user, 'modificar_permisos');
   const canEjecutarAuditoria = tienePermiso(user, 'ejecutar_auditoria');
@@ -87,36 +78,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loading = authLoading || (isAuthenticated && dataLoading);
 
-  // Cargar assignedQuestionnaires desde Firestore
+  // Cargar assignedQuestionnaires
   useEffect(() => {
-    if (!user) {
-      setAssignedQuestionnaires([]);
-      return;
-    }
-    if (user.role === 'admin') {
-      setAssignedQuestionnaires([]); // admin ve todo
-      return;
-    }
+    if (!user) { setAssignedQuestionnaires([]); return; }
+    if (user.role === 'admin') { setAssignedQuestionnaires([]); return; }
 
     const loadAssigned = async () => {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setAssignedQuestionnaires(data.assignedQuestionnaires || []);
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setAssignedQuestionnaires(userDoc.data().assignedQuestionnaires || []);
+        }
+      } catch (error) {
+        console.error('Error cargando cuestionarios asignados:', error);
       }
     };
     loadAssigned();
   }, [user]);
 
+  // Cargar sitios
   useEffect(() => {
-    if (!user) {
-      setSites([]);
-      setDataLoading(false);
-      return;
-    }
+    if (!user) { setSites([]); setDataLoading(false); return; }
 
     const q = query(collection(db, 'sites'), orderBy('name'));
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let sitesData: Site[] = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -135,11 +119,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return unsubscribe;
   }, [user]);
 
+  // ✅ Cargar cuestionarios - CORREGIDO
   useEffect(() => {
-    if (!user) {
-      setQuestionnaires([]);
-      return;
-    }
+    if (!user) { setQuestionnaires([]); return; }
 
     const q = query(collection(db, 'questionnaires'), orderBy('name'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -148,9 +130,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...docSnap.data(),
       })) as QuestionnaireConfig[];
 
-      // Filtrar cuestionarios asignados al usuario (no-admin)
-      if (user.role !== 'admin' && assignedQuestionnaires.length > 0) {
-        questData = questData.filter((q) => assignedQuestionnaires.includes(q.id));
+      if (user.role !== 'admin') {
+        const assignedSites = user.assignedSites || [];
+        const assignedQuestionnaires = user.assignedQuestionnaires || [];
+        
+        questData = questData.filter((q) => {
+          // ✅ Si el cuestionario está asignado directamente al usuario, mostrarlo
+          if (assignedQuestionnaires.includes(q.id)) {
+            return true;
+          }
+          
+          // ✅ Si el cuestionario tiene sitioIds, verificar que coincida con los sitios del usuario
+          if (q.sitioIds && q.sitioIds.length > 0) {
+            return q.sitioIds.some(siteId => assignedSites.includes(siteId));
+          }
+          
+          return false;
+        });
       }
 
       setQuestionnaires(questData);
@@ -158,11 +154,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return unsubscribe;
   }, [user, assignedQuestionnaires]);
 
+  // Cargar auditorías
   useEffect(() => {
-    if (!user) {
-      setAudits([]);
-      return;
-    }
+    if (!user) { setAudits([]); return; }
 
     const q = query(collection(db, 'audits'), orderBy('completedAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -190,12 +184,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const value: AppState = {
     isAuthenticated,
-    // Legacy
     isAdmin,
     isAuditor,
     isGestor,
     isLector,
-    // Nuevos granulares
     canGestionarUsuarios,
     canModificarPermisos,
     canEjecutarAuditoria,
@@ -207,7 +199,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     canEditarSitio,
     canVerTodasAuditorias,
     canVerSusAuditorias,
-    // Datos
     sites,
     questionnaires,
     audits,

@@ -1,6 +1,6 @@
 // src/types/index.ts
 
-export type UserRole = 'admin' | 'auditor' | 'lector' | 'gestor' | 'operador';
+export type UserRole = 'admin' | 'auditor' | 'lector' | 'gestor' | 'operador' | 'coordinador';
 
 export type RespuestaValor = 'C' | 'CP' | 'NC' | 'NA';
 export type RespuestaChecklist = 'CUMPLE' | 'NO_CUMPLE';
@@ -9,7 +9,7 @@ export type NivelDesvio = 'critico' | 'mayor' | 'menor' | 'ninguno';
 export type NivelRiesgoMunicipal = 'bajo' | 'medio' | 'critico';
 export type FrecuenciaAuditoria = 'diaria' | 'semanal' | 'quincenal' | 'mensual' | 'trimestral';
 export type CategoriaRequisito = 'municipal' | 'nacional' | 'seguros' | 'sanidad' | 'bomberos' | 'otro';
-export type TipoCuestionario = 'auditoria' | 'checklist';
+export type TipoCuestionario = 'auditoria' | 'checklist' | 'gestion_comercio';
 
 export interface User {
   uid: string;
@@ -17,6 +17,7 @@ export interface User {
   role: UserRole;
   displayName: string;
   assignedSites: string[];
+  assignedQuestionnaires?: string[];
   active: boolean;
   trialEndsAt?: any;
   permisosOverride?: Record<string, boolean>;
@@ -24,11 +25,14 @@ export interface User {
   permisosActualizadosPor?: string;
   permisosActualizadosEn?: any;
   fechaVencimientoOverrides?: string | null;
+  empresaId?: string;
   createdAt: any;
   updatedAt: any;
   termsAccepted?: boolean;
   termsVersion?: string;
   termsAcceptedAt?: string | null;
+  isTrial?: boolean;
+  plan?: string;
 }
 
 export interface HabilitacionItem {
@@ -107,6 +111,8 @@ export interface QuestionnaireConfig {
   allowPartialSave: boolean;
   requireLocation: boolean;
   questions: QuestionnaireQuestion[];
+  preguntasGestion?: PreguntaGestion[];
+  sitioIds: string[]; // ✅ NUEVO - Sitios donde se puede usar este cuestionario
   qrGroups?: string[];
   qrGroupsConfig?: { [grupo: string]: QRGroupConfig };
   sectorizado?: boolean;
@@ -196,6 +202,7 @@ export interface AuditRecord {
   status: 'in_progress' | 'completed' | 'partial';
   geolocalizacion?: Geolocalizacion | null;
   establecimiento?: string | null;
+  observacionesGenerales?: string | null;
   createdAt: any;
   updatedAt: any;
 }
@@ -316,9 +323,17 @@ export const ROLES_PERMISOS: Record<UserRole, Record<PermisoNombre, boolean>> = 
     ver_dashboard: false, crear_sitio: false, editar_sitio: false,
   },
   gestor: {
-    crear_auditoria: true, ejecutar_auditoria: true, ver_sus_auditorias: true, ver_todas_auditorias: true,
-    exportar_reportes: true, gestionar_checklist: false, gestionar_usuarios: false, modificar_permisos: false,
-    ver_dashboard: true, crear_sitio: false, editar_sitio: false,
+    crear_auditoria: true,
+    ejecutar_auditoria: true,
+    ver_sus_auditorias: true,
+    ver_todas_auditorias: true,
+    exportar_reportes: true,
+    gestionar_checklist: true,
+    gestionar_usuarios: false,
+    modificar_permisos: false,
+    ver_dashboard: true,
+    crear_sitio: true,
+    editar_sitio: true,
   },
   lector: {
     crear_auditoria: false, ejecutar_auditoria: false, ver_sus_auditorias: false, ver_todas_auditorias: true,
@@ -329,6 +344,19 @@ export const ROLES_PERMISOS: Record<UserRole, Record<PermisoNombre, boolean>> = 
     crear_auditoria: false, ejecutar_auditoria: false, ver_sus_auditorias: false, ver_todas_auditorias: false,
     exportar_reportes: false, gestionar_checklist: false, gestionar_usuarios: false, modificar_permisos: false,
     ver_dashboard: false, crear_sitio: false, editar_sitio: false,
+  },
+  coordinador: {
+    crear_auditoria: true,
+    ejecutar_auditoria: true,
+    ver_sus_auditorias: true,
+    ver_todas_auditorias: false,
+    exportar_reportes: true,
+    gestionar_checklist: true,
+    gestionar_usuarios: false,
+    modificar_permisos: false,
+    ver_dashboard: true,
+    crear_sitio: false,
+    editar_sitio: false,
   },
 };
 
@@ -373,4 +401,98 @@ export interface AuditHistorial {
   modificadoPorNombre: string;
   cambios: CambioAuditoria[];
   createdAt: any;
+}
+
+// ============================================================
+// ETAPA 1: OFFLINE + GESTIÓN COMERCIO + ALERTAS
+// ============================================================
+
+export type TipoPreguntaGestion = 'texto' | 'multiple_choice' | 'numerica' | 'si_no' | 'foto' | 'fecha';
+
+export interface OpcionMultipleChoice {
+  id: string;
+  texto: string;
+}
+
+export interface PreguntaGestion {
+  id: string;
+  texto: string;
+  tipo: TipoPreguntaGestion;
+  requerido: boolean;
+  requiereFoto: boolean;
+  requiereGeolocalizacion: boolean;
+  requiereQR: boolean;
+  opciones?: OpcionMultipleChoice[];
+  instrucciones?: string;
+  orden: number;
+  grupo?: string;
+}
+
+export interface CuestionarioGestion {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  tipo: 'gestion_comercio';
+  sitioIds: string[];
+  preguntas: PreguntaGestion[];
+  active: boolean;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface OfflineAudit {
+  id: string;
+  siteId: string;
+  siteName: string;
+  questionnaireId: string;
+  questionnaireName: string;
+  tipoCuestionario: TipoCuestionario;
+  auditorId: string;
+  auditorEmail: string;
+  auditorName: string;
+  respuestas: {
+    questionId: string;
+    questionText: string;
+    valor: string;
+    comentario: string;
+    photoURLs: string[];
+    tipoPregunta?: TipoPreguntaGestion;
+  }[];
+  score: number;
+  clasificacion: ClasificacionRiesgo;
+  startedAt: string;
+  completedAt: string;
+  geolocalizacion?: Geolocalizacion | null;
+  establecimiento?: string | null;
+  observacionesGenerales?: string;
+  sincronizado: boolean;
+  createdAt: string;
+}
+
+export interface AlertaConfig {
+  id: string;
+  nombre: string;
+  diasAntes: number[];
+  tipo: 'vencimiento_cuestionario' | 'vencimiento_requisito' | 'score_bajo';
+  activo: boolean;
+  emailsDestino: string[];
+  mensajePersonalizado?: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
+// ============================================================
+// ETAPA 2: ROLES + DOCUMENTACIÓN POR USUARIO
+// ============================================================
+
+export interface DocumentoUsuario {
+  id: string;
+  userId: string;
+  nombre: string;
+  tipo: 'dni' | 'certificado' | 'contrato' | 'otro';
+  archivoURL: string;
+  fechaVencimiento?: string | null;
+  activo: boolean;
+  createdAt: any;
+  updatedAt: any;
 }

@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppContext } from '../../context/AppContext';
-import { createAudit, updateAudit, analizarRecurrencia, getClasificacionColor, uploadAuditPhoto, createNotificacion, sendEmailNotification, validateQRToken } from '../../firebase';
+import { createAudit, updateAudit, analizarRecurrencia, getClasificacionColor, uploadAuditPhoto, createNotificacion, sendEmailNotification, validateQRToken, saveAuditOffline, getPendingSyncCount } from '../../firebase';
 import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { calcularScore, clasificarRiesgo, getClasificacionLabel, getClasificacionBg, getScoreColor, generarConclusion, calcularScoreChecklist, clasificarRiesgoChecklist } from '../../utils/auditUtils';
 import { generarPDF } from '../../utils/pdfGenerator';
 import QRScanner from '../QR/QRScanner';
-import type { AuditRecord, AuditResponse, RespuestaValor, RespuestaChecklist, CambioAuditoria, AuditHistorial, Geolocalizacion } from '../../types';
-import { QrCode, Lock, Building2, ClipboardCheck, ShieldAlert, FileText, Edit3, MapPin } from 'lucide-react';
+import type { AuditRecord, AuditResponse, RespuestaValor, RespuestaChecklist, CambioAuditoria, AuditHistorial, Geolocalizacion, PreguntaGestion, OfflineAudit } from '../../types';
+import { QrCode, Lock, Building2, ClipboardCheck, ShieldAlert, FileText, Edit3, MapPin, ShoppingBag, WifiOff, Upload } from 'lucide-react';
 
 const OPCIONES: { value: RespuestaValor; label: string; color: string }[] = [
   { value: 'C', label: 'C - Cumple', color: 'bg-green-100 border-green-400 text-green-800' },
@@ -76,12 +76,31 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
   const [geoError, setGeoError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
 
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [respuestasGestion, setRespuestasGestion] = useState<Record<string, string>>({});
+  const [respuestasSiNo, setRespuestasSiNo] = useState<Record<string, boolean | null>>({});
+
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const isEditing = !!auditToEdit;
+  const currentConfig = questionnaires.find(q => q.id === selectedQuestionnaireId);
+  const selectedSite = sites.find(s => s.id === selectedSiteId);
+  const esChecklist = currentConfig?.tipo === 'checklist';
+  const esGestionComercio = currentConfig?.tipo === 'gestion_comercio';
+  const preguntasGestion: PreguntaGestion[] = (currentConfig as any)?.preguntasGestion || [];
 
-  // ✅ GEOLOCALIZACIÓN - CORREGIDA
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const capturarGeolocalizacion = () => {
     if (!navigator.geolocation) {
       setGeoError('Geolocalización no soportada');
@@ -113,7 +132,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     );
   };
 
-  // ✅ useEffect CORREGIDO - SOLO ESTO CAMBIÓ
   useEffect(() => {
     if (!isEditing && !auditToEdit) {
       capturarGeolocalizacion();
@@ -121,7 +139,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     if (auditToEdit?.geolocalizacion) {
       setGeolocalizacion(auditToEdit.geolocalizacion);
     }
-  }, []); // ← Array vacío = se ejecuta UNA vez
+  }, []);
 
   useEffect(() => {
     if (auditToEdit) {
@@ -141,10 +159,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     timerRef.current = setInterval(() => { setCurrentTime(Math.floor((Date.now() - startTime) / 1000)); }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [startTime]);
-
-  const currentConfig = questionnaires.find(q => q.id === selectedQuestionnaireId);
-  const selectedSite = sites.find(s => s.id === selectedSiteId);
-  const esChecklist = currentConfig?.tipo === 'checklist';
 
   useEffect(() => {
     if (!isEditing) {
@@ -176,6 +190,14 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
   const handleComentario = (questionId: string, comentario: string) => { setComentarios(prev => ({ ...prev, [questionId]: comentario })); };
   const handleFileSelect = (questionId: string) => { fileInputRefs.current[questionId]?.click(); };
 
+  const handleRespuestaGestion = (questionId: string, valor: string) => {
+    setRespuestasGestion(prev => ({ ...prev, [questionId]: valor }));
+  };
+
+  const handleRespuestaSiNo = (questionId: string, valor: boolean) => {
+    setRespuestasSiNo(prev => ({ ...prev, [questionId]: valor }));
+  };
+
   const handleFileChange = async (questionId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files; if (!files || files.length === 0) return;
     setUploadingPhotos(prev => ({ ...prev, [questionId]: true })); setUploadProgress(prev => ({ ...prev, [questionId]: 0 }));
@@ -185,8 +207,18 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       const nombreSinExt = archivoOriginal.name.replace(/\.[^/.]+$/, '');
       const fileComprimido = new File([archivoComprimido], `${nombreSinExt}.jpg`, { type: 'image/jpeg' });
       const tempAuditId = `temp_${Date.now()}`;
-      const url = await uploadAuditPhoto(tempAuditId, questionId, fileComprimido, (progress) => { setUploadProgress(prev => ({ ...prev, [questionId]: progress })); });
-      setFotos(prev => ({ ...prev, [questionId]: [...(prev[questionId] || []), url] }));
+      
+      if (!isOnline) {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(fileComprimido);
+        });
+        setFotos(prev => ({ ...prev, [questionId]: [...(prev[questionId] || []), dataUrl] }));
+      } else {
+        const url = await uploadAuditPhoto(tempAuditId, questionId, fileComprimido, (progress) => { setUploadProgress(prev => ({ ...prev, [questionId]: progress })); });
+        setFotos(prev => ({ ...prev, [questionId]: [...(prev[questionId] || []), url] }));
+      }
     } catch (error: any) { console.error('Error subiendo foto:', error); alert('Error al subir la foto.'); }
     finally { setUploadingPhotos(prev => ({ ...prev, [questionId]: false })); setUploadProgress(prev => ({ ...prev, [questionId]: 0 })); if (fileInputRefs.current[questionId]) fileInputRefs.current[questionId]!.value = ''; }
   };
@@ -203,32 +235,145 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setErrors([]);
     if (!currentConfig || !user) return;
-    if (!isEditing && (currentConfig.requireQR || currentConfig.sectorizado) && !qrValidated && !currentConfig.sectorizado) { setErrors(['Debe escanear el QR antes de finalizar']); return; }
+    if (!isEditing && (currentConfig.requireQR || currentConfig.sectorizado) && !qrValidated && !currentConfig.sectorizado && !esGestionComercio) { setErrors(['Debe escanear el QR antes de finalizar']); return; }
     if (!isEditing && currentConfig.sectorizado && validatedGroups.length < grupos.length) { setErrors([`Faltan validar ${grupos.length - validatedGroups.length} sector(es) con QR`]); return; }
 
-    const questions = currentConfig.questions || [];
-    const errs: string[] = [];
-    for (const q of questions) {
-      if (!respuestas[q.id]) errs.push(`Falta respuesta en: ${q.text}`);
-      if (q.requireComment && !comentarios[q.id]?.trim()) errs.push(`Falta comentario en: ${q.text}`);
-      if (q.requirePhoto && (!fotos[q.id] || fotos[q.id].length === 0)) errs.push(`Falta foto en: ${q.text}`);
+    if (esGestionComercio) {
+      const errs: string[] = [];
+      for (const q of preguntasGestion) {
+        if (q.requerido) {
+          if (q.tipo === 'foto' && (!fotos[q.id] || fotos[q.id].length === 0)) {
+            errs.push(`Falta foto en: ${q.texto}`);
+          } else if (q.tipo === 'si_no' && respuestasSiNo[q.id] === undefined) {
+            errs.push(`Falta responder: ${q.texto}`);
+          } else if (q.tipo !== 'foto' && q.tipo !== 'si_no' && !respuestasGestion[q.id]?.trim()) {
+            errs.push(`Falta respuesta en: ${q.texto}`);
+          }
+        }
+      }
+      if (errs.length > 0) { setErrors(errs); return; }
+    } else {
+      const questions = currentConfig.questions || [];
+      const errs: string[] = [];
+      for (const q of questions) {
+        if (!respuestas[q.id]) errs.push(`Falta respuesta en: ${q.text}`);
+        if (q.requireComment && !comentarios[q.id]?.trim()) errs.push(`Falta comentario en: ${q.text}`);
+        if (q.requirePhoto && (!fotos[q.id] || fotos[q.id].length === 0)) errs.push(`Falta foto en: ${q.text}`);
+      }
+      if (errs.length > 0) { setErrors(errs); return; }
     }
-    if (errs.length > 0) { setErrors(errs); return; }
 
     setSaving(true);
     try {
-      if (!selectedSite) throw new Error('Sitio no encontrado');
-      const responses: AuditResponse[] = questions.map(q => ({
-        questionId: q.id, questionText: q.text, questionType: q.type || 'C/NC', puntoNorma: q.puntoNorma, norma: q.norma || currentConfig.norma || '',
-        esCriticoInocuidad: q.esCriticoInocuidad || false, nivelDesvio: q.nivelDesvio || 'ninguno', nivelRiesgoMunicipal: q.nivelRiesgoMunicipal || null,
-        valor: respuestas[q.id] || (esChecklist ? 'NO_CUMPLE' : 'NA'), comentario: comentarios[q.id] || '', photoURLs: fotos[q.id] || [],
-        responseTimeSeconds: questionStartTimes[q.id] ? Math.floor((Date.now() - questionStartTimes[q.id]) / 1000) : 0,
-        startedAt: new Date(questionStartTimes[q.id] || Date.now()), completedAt: new Date()
-      }));
+      if (!isOnline && !isEditing) {
+        const offlineAudit: OfflineAudit = {
+          id: `offline_${Date.now()}`,
+          siteId: selectedSiteId,
+          siteName: selectedSite?.name || '',
+          questionnaireId: selectedQuestionnaireId,
+          questionnaireName: currentConfig.name,
+          tipoCuestionario: currentConfig.tipo || 'auditoria',
+          auditorId: user.uid,
+          auditorEmail: user.email || '',
+          auditorName: user.displayName || user.email || '',
+          respuestas: esGestionComercio
+            ? preguntasGestion.map(q => ({
+                questionId: q.id,
+                questionText: q.texto,
+                valor: q.tipo === 'si_no' ? (respuestasSiNo[q.id] ? 'Sí' : 'No') : (respuestasGestion[q.id] || 'Sin respuesta'),
+                comentario: '',
+                photoURLs: fotos[q.id] || [],
+                tipoPregunta: q.tipo
+              }))
+            : (currentConfig.questions || []).map(q => ({
+                questionId: q.id,
+                questionText: q.text,
+                valor: respuestas[q.id] || 'NA',
+                comentario: comentarios[q.id] || '',
+                photoURLs: fotos[q.id] || []
+              })),
+          score: 100,
+          clasificacion: 'conforme',
+          startedAt: new Date(startTime).toISOString(),
+          completedAt: new Date().toISOString(),
+          geolocalizacion: geolocalizacion || null,
+          establecimiento: establecimiento || null,
+          observacionesGenerales: observacionesGenerales || '',
+          sincronizado: false,
+          createdAt: new Date().toISOString()
+        };
 
-      let scoreData: any; let clasificacion: string;
-      if (esChecklist) { scoreData = calcularScoreChecklist(responses); clasificacion = clasificarRiesgoChecklist(scoreData.score, scoreData.criticosNC); }
-      else { scoreData = calcularScore(responses); clasificacion = clasificarRiesgo(scoreData.score, scoreData.criticosNC); }
+        saveAuditOffline(offlineAudit);
+        
+        setResultado({
+          id: offlineAudit.id,
+          ...offlineAudit,
+          offline: true,
+          pendingSync: true
+        });
+        setSaving(false);
+        return;
+      }
+
+      if (!selectedSite) throw new Error('Sitio no encontrado');
+
+      let responses: AuditResponse[];
+      let scoreData: any;
+      let clasificacion: string;
+
+      if (esGestionComercio) {
+        responses = preguntasGestion.map(q => {
+          let valor: string;
+          if (q.tipo === 'si_no') {
+            valor = respuestasSiNo[q.id] ? 'Sí' : 'No';
+          } else if (q.tipo === 'foto') {
+            valor = (fotos[q.id] && fotos[q.id].length > 0) ? 'Con foto' : 'Sin foto';
+          } else {
+            valor = respuestasGestion[q.id] || 'Sin respuesta';
+          }
+          
+          return {
+            questionId: q.id,
+            questionText: q.texto,
+            questionType: q.tipo,
+            puntoNorma: q.grupo || 'General',
+            norma: currentConfig.norma || 'Gestión Comercio',
+            esCriticoInocuidad: false,
+            nivelDesvio: 'ninguno' as const,
+            valor: valor as any,
+            comentario: '',
+            photoURLs: fotos[q.id] || [],
+            responseTimeSeconds: 0,
+            startedAt: new Date(startTime),
+            completedAt: new Date()
+          };
+        });
+
+        const cumplen = responses.filter(r => r.valor !== 'Sin respuesta').length;
+        const total = responses.length;
+        scoreData = {
+          score: total > 0 ? Math.round((cumplen / total) * 100 * 10) / 10 : 100,
+          totalAplicables: total,
+          totalCumplen: cumplen,
+          totalCumplenParcial: 0,
+          totalNoCumplen: total - cumplen,
+          totalNoAplica: 0,
+          criticosNC: 0
+        };
+        clasificacion = scoreData.score >= 90 ? 'conforme' : scoreData.score >= 81 ? 'a_mejorar' : 'riesgo_alto';
+      } else {
+        const questions = currentConfig.questions || [];
+        responses = questions.map(q => ({
+          questionId: q.id, questionText: q.text, questionType: q.type || 'C/NC', puntoNorma: q.puntoNorma, norma: q.norma || currentConfig.norma || '',
+          esCriticoInocuidad: q.esCriticoInocuidad || false, nivelDesvio: q.nivelDesvio || 'ninguno', nivelRiesgoMunicipal: q.nivelRiesgoMunicipal || null,
+          valor: respuestas[q.id] || (esChecklist ? 'NO_CUMPLE' : 'NA'), comentario: comentarios[q.id] || '', photoURLs: fotos[q.id] || [],
+          responseTimeSeconds: questionStartTimes[q.id] ? Math.floor((Date.now() - questionStartTimes[q.id]) / 1000) : 0,
+          startedAt: new Date(questionStartTimes[q.id] || Date.now()), completedAt: new Date()
+        }));
+
+        if (esChecklist) { scoreData = calcularScoreChecklist(responses); clasificacion = clasificarRiesgoChecklist(scoreData.score, scoreData.criticosNC); }
+        else { scoreData = calcularScore(responses); clasificacion = clasificarRiesgo(scoreData.score, scoreData.criticosNC); }
+      }
 
       const auditData: any = {
         siteId: selectedSiteId, siteName: selectedSite.name, questionnaireId: selectedQuestionnaireId,
@@ -248,7 +393,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       };
       if (selectedSector) { auditData.sectorId = selectedSector.id; auditData.sectorName = selectedSector.name; auditData.qrToken = selectedSector.qrToken; auditData.qrValidatedAt = new Date(); }
 
-      if (!esChecklist) {
+      if (!esChecklist && !esGestionComercio) {
         const recurrencia = await analizarRecurrencia(auditData as AuditRecord);
         auditData.recurrenciaDetectada = recurrencia.detectada; auditData.recurrenciaDetalle = recurrencia.detalle;
         auditData.desviosSistematicos = recurrencia.desviosSistematicos; if (recurrencia.detectada) auditData.clasificacion = 'riesgo_alto';
@@ -288,11 +433,26 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     return (
       <div className="p-6 max-w-2xl mx-auto">
         <div className="bg-white border rounded-lg p-6 text-center">
-          <h2 className="text-2xl font-bold mb-4">{resultado.editado ? '✏️ Auditoría Editada' : '✅ Auditoría Guardada'}</h2>
-          <div className={`text-4xl font-black mb-2 ${getScoreColor(resultado.score)}`}>{resultado.score}%</div>
-          <div className={`inline-block px-4 py-2 rounded-lg text-lg font-bold border mb-2 ${getClasificacionBg(resultado.clasificacion)}`}>{getClasificacionColor(resultado.clasificacion)}</div>
-          <p className="text-sm text-gray-500 mb-4">{getClasificacionLabel(resultado.clasificacion)}</p>
-          {resultado.editado && <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4"><p className="text-sm text-purple-700">📝 Los cambios se guardaron y quedaron registrados en el historial.</p></div>}
+          <h2 className="text-2xl font-bold mb-4">
+            {resultado.offline ? '📱 Auditoría Guardada (Offline)' : resultado.editado ? '✏️ Auditoría Editada' : '✅ Auditoría Guardada'}
+          </h2>
+          
+          {resultado.offline ? (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <WifiOff className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+              <p className="text-yellow-800 font-medium">Guardada en el dispositivo</p>
+              <p className="text-sm text-yellow-600 mt-1">Se sincronizará automáticamente cuando vuelva la conexión</p>
+              <p className="text-xs text-yellow-500 mt-2">Pendientes: {getPendingSyncCount()} auditoría(s)</p>
+            </div>
+          ) : (
+            <>
+              <div className={`text-4xl font-black mb-2 ${getScoreColor(resultado.score)}`}>{resultado.score}%</div>
+              <div className={`inline-block px-4 py-2 rounded-lg text-lg font-bold border mb-2 ${getClasificacionBg(resultado.clasificacion)}`}>{getClasificacionColor(resultado.clasificacion)}</div>
+              <p className="text-sm text-gray-500 mb-4">{getClasificacionLabel(resultado.clasificacion)}</p>
+              {resultado.editado && <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4"><p className="text-sm text-purple-700">📝 Los cambios se guardaron y quedaron registrados en el historial.</p></div>}
+            </>
+          )}
+          
           {resultado.geolocalizacion && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-blue-700">📍 Ubicación registrada: <a href={`https://www.google.com/maps?q=${resultado.geolocalizacion.lat},${resultado.geolocalizacion.lng}`} target="_blank" rel="noopener noreferrer" className="underline font-bold">Ver en Google Maps</a></p>
@@ -300,9 +460,12 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
             </div>
           )}
           {resultado.establecimiento && <p className="text-sm text-gray-600 mb-2">🏫 Establecimiento: <strong>{resultado.establecimiento}</strong></p>}
+          
           <div className="flex justify-center gap-3 mt-4">
-            <button onClick={() => generarPDF(resultado as AuditRecord)} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">📄 Descargar PDF</button>
-            <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Nuevo Control</button>
+            {!resultado.offline && (
+              <button onClick={() => generarPDF(resultado as AuditRecord)} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">📄 Descargar PDF</button>
+            )}
+            <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setRespuestasGestion({}); setRespuestasSiNo({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Nuevo Control</button>
           </div>
         </div>
       </div>
@@ -313,19 +476,31 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     <div className="p-6">
       <div className="flex items-center gap-3 mb-4">
         {isEditing && <button onClick={onCancelEdit} className="text-gray-500 hover:text-gray-700 text-sm underline">← Cancelar edición</button>}
-        <h2 className="text-2xl font-bold">{isEditing ? `✏️ Editando: ${auditToEdit?.questionnaireName}` : esChecklist ? 'Nuevo Checklist Municipal' : 'Nueva Auditoría'}</h2>
+        <h2 className="text-2xl font-bold">
+          {isEditing ? `✏️ Editando: ${auditToEdit?.questionnaireName}` : 
+           esGestionComercio ? '🛍️ Nueva Gestión Comercio' :
+           esChecklist ? 'Nuevo Checklist Municipal' : 'Nueva Auditoría'}
+        </h2>
       </div>
       {isEditing && <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700"><Edit3 className="w-4 h-4 inline mr-1" />Modo edición: los cambios se guardarán en el historial.</div>}
 
+      {!isOnline && !isEditing && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
+          <WifiOff className="w-4 h-4" />
+          Modo offline - La auditoría se guardará en el dispositivo y se sincronizará al volver la conexión
+        </div>
+      )}
+
       <div className="mb-4 p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-sm">
         <span>⏱ Tiempo: <strong>{formatTime(currentTime)}</strong></span>
-        {currentConfig?.minimumTimeMinutes > 0 && <span className="text-yellow-600">Mínimo: {currentConfig.minimumTimeMinutes} min</span>}
-        {!isEditing && (currentConfig?.requireQR || currentConfig?.sectorizado) && (
+        {currentConfig?.minimumTimeMinutes > 0 && !esGestionComercio && <span className="text-yellow-600">Mínimo: {currentConfig.minimumTimeMinutes} min</span>}
+        {!isEditing && (currentConfig?.requireQR || currentConfig?.sectorizado) && !esGestionComercio && (
           <span className={currentConfig?.sectorizado ? (validatedGroups.length === grupos.length ? 'text-green-600' : 'text-red-600') : (qrValidated ? 'text-green-600' : 'text-red-600')}>
             {currentConfig?.sectorizado ? `🔒 ${validatedGroups.length}/${grupos.length} sectores` : qrValidated ? '✅ QR Validado' : '🔒 QR Pendiente'}
           </span>
         )}
         {esChecklist && <span className="text-red-600 flex items-center gap-1"><ClipboardCheck className="w-4 h-4" /> Municipal</span>}
+        {esGestionComercio && <span className="text-emerald-600 flex items-center gap-1"><ShoppingBag className="w-4 h-4" /> Gestión Comercio</span>}
       </div>
 
       {errors.length > 0 && (<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"><ul className="list-disc list-inside text-sm text-red-600">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></div>)}
@@ -333,13 +508,12 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium mb-1">Sitio *</label><select value={selectedSiteId} onChange={(e) => setSelectedSiteId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar sitio...</option>{sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-          <div><label className="block text-sm font-medium mb-1">Cuestionario *</label><select value={selectedQuestionnaireId} onChange={(e) => setSelectedQuestionnaireId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar cuestionario...</option>{questionnaires.map(q => <option key={q.id} value={q.id}>{q.name} ({q.norma}) {q.tipo === 'checklist' ? '🏛️ Municipal' : q.sectorizado ? '🏢 Sectorizado' : ''}</option>)}</select></div>
+          <div><label className="block text-sm font-medium mb-1">Sitio *</label><select value={selectedSiteId} onChange={(e) => setSelectedSiteId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar sitio...</option>{sites.filter(s => s.active !== false).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+          <div><label className="block text-sm font-medium mb-1">Cuestionario *</label><select value={selectedQuestionnaireId} onChange={(e) => setSelectedQuestionnaireId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar cuestionario...</option>{questionnaires.filter(q => q.active !== false).map(q => <option key={q.id} value={q.id}>{q.name} ({q.norma}) {q.tipo === 'gestion_comercio' ? '🛍️ Gestión' : q.tipo === 'checklist' ? '🏛️ Municipal' : q.sectorizado ? '🏢 Sectorizado' : ''}</option>)}</select></div>
         </div>
 
         <div><label className="block text-sm font-medium mb-1 flex items-center gap-1"><MapPin className="w-4 h-4 text-gray-500" /> Establecimiento (opcional)</label><input type="text" value={establecimiento} onChange={(e) => setEstablecimiento(e.target.value)} placeholder="Ej: Escuela N° 234, Salón Norte, etc." className="w-full px-3 py-2 border rounded-lg text-sm" /><p className="text-xs text-gray-400 mt-1">Identificá el establecimiento específico dentro del sitio genérico.</p></div>
 
-        {/* GEOLOCALIZACIÓN UI */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <MapPin className="w-5 h-5 text-blue-600" />
@@ -384,19 +558,141 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
 
         <div><label className="block text-sm font-medium mb-1 flex items-center gap-1"><FileText className="w-4 h-4 text-gray-500" /> Observaciones generales</label><textarea value={observacionesGenerales} onChange={(e) => setObservacionesGenerales(e.target.value)} placeholder="Observaciones vinculadas al sitio (opcional)..." className="w-full px-3 py-2 border rounded-lg text-sm resize-none" rows={3} /></div>
 
-        {!isEditing && currentConfig?.requireQR && !currentConfig.sectorizado && !qrValidated && (
+        {!isEditing && currentConfig?.requireQR && !currentConfig.sectorizado && !qrValidated && !esGestionComercio && (
           <div className="border-2 border-orange-300 bg-orange-50 rounded-lg p-4"><div className="flex items-center gap-2 mb-3"><Lock className="w-5 h-5 text-orange-600" /><h3 className="font-bold text-orange-800">Validación QR Requerida</h3></div><p className="text-sm text-orange-700 mb-3">Escanee el código QR del sector antes de comenzar.</p><QRScanner required={true} onScanSuccess={() => handleQRScanSuccess()} /></div>
         )}
 
-        {!isEditing && currentConfig?.sectorizado && grupoActual && (
+        {!isEditing && currentConfig?.sectorizado && grupoActual && !esGestionComercio && (
           <div className="border-2 border-purple-300 bg-purple-50 rounded-lg p-4"><div className="flex items-center gap-2 mb-3"><Building2 className="w-5 h-5 text-purple-600" /><h3 className="font-bold text-purple-800">QR Sector: {grupoActual}</h3></div><p className="text-sm text-purple-700 mb-3">Escaneá el QR del sector <strong>{grupoActual}</strong> para habilitar sus preguntas.</p><QRScanner required={true} onScanSuccess={handleQRScanSuccess} /><div className="mt-2 text-xs text-purple-600">Sectores completados: {validatedGroups.join(', ') || 'Ninguno'}</div></div>
         )}
 
-        {currentConfig?.requireQR && !currentConfig.sectorizado && qrValidated && selectedSector && (
+        {currentConfig?.requireQR && !currentConfig.sectorizado && qrValidated && selectedSector && !esGestionComercio && (
           <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2"><QrCode className="w-5 h-5 text-green-600" /><div><p className="font-medium text-green-800 text-sm">✅ QR Validado</p><p className="text-xs text-green-600">Sector: <strong>{selectedSector.name}</strong></p></div></div>
         )}
 
-        {(isEditing || !currentConfig?.requireQR || qrValidated || currentConfig?.sectorizado) && currentConfig && currentConfig.questions && currentConfig.questions.length > 0 && (
+        {esGestionComercio && preguntasGestion.length > 0 && (
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-semibold text-emerald-800 flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5" /> Preguntas del cuestionario
+            </h3>
+            {preguntasGestion.sort((a, b) => a.orden - b.orden).map((pregunta) => (
+              <div key={pregunta.id} className="border rounded-lg p-4 bg-white">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="font-medium text-sm">{pregunta.texto}</p>
+                    <p className="text-xs text-gray-500">
+                      Tipo: {pregunta.tipo === 'texto' ? '📝 Texto' : 
+                             pregunta.tipo === 'multiple_choice' ? '☑️ Multiple choice' :
+                             pregunta.tipo === 'numerica' ? '🔢 Numérica' :
+                             pregunta.tipo === 'si_no' ? '✅ Sí/No' :
+                             pregunta.tipo === 'foto' ? '📸 Foto' : '📅 Fecha'}
+                      {pregunta.requerido && <span className="text-red-500 ml-1">*</span>}
+                    </p>
+                  </div>
+                  {pregunta.grupo && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">{pregunta.grupo}</span>}
+                </div>
+                {pregunta.instrucciones && <p className="text-xs text-gray-400 italic mb-2">📋 {pregunta.instrucciones}</p>}
+                
+                <div className="mt-2">
+                  {pregunta.tipo === 'texto' && (
+                    <textarea
+                      value={respuestasGestion[pregunta.id] || ''}
+                      onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)}
+                      placeholder="Escribir respuesta..."
+                      className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+                      rows={3}
+                    />
+                  )}
+                  
+                  {pregunta.tipo === 'multiple_choice' && (
+                    <div className="space-y-1">
+                      {(pregunta.opciones || []).map(opcion => (
+                        <label key={opcion.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`mc_${pregunta.id}`}
+                            checked={respuestasGestion[pregunta.id] === opcion.texto}
+                            onChange={() => handleRespuestaGestion(pregunta.id, opcion.texto)}
+                            className="form-radio h-4 w-4 text-emerald-600"
+                          />
+                          <span className="text-sm">{opcion.texto}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {pregunta.tipo === 'numerica' && (
+                    <input
+                      type="number"
+                      value={respuestasGestion[pregunta.id] || ''}
+                      onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)}
+                      placeholder="Ingresar número..."
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                    />
+                  )}
+                  
+                  {pregunta.tipo === 'si_no' && (
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleRespuestaSiNo(pregunta.id, true)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${respuestasSiNo[pregunta.id] === true ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                      >
+                        ✅ Sí
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRespuestaSiNo(pregunta.id, false)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${respuestasSiNo[pregunta.id] === false ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                      >
+                        ❌ No
+                      </button>
+                    </div>
+                  )}
+                  
+                  {pregunta.tipo === 'fecha' && (
+                    <input
+                      type="date"
+                      value={respuestasGestion[pregunta.id] || ''}
+                      onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                    />
+                  )}
+                  
+                  {pregunta.tipo === 'foto' && (
+                    <div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button type="button" onClick={() => handleFileSelect(pregunta.id)} disabled={uploadingPhotos[pregunta.id]}
+                          className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300"
+                        >📸 Subir foto {pregunta.requerido ? '(*)' : ''}</button>
+                        <button type="button" onClick={() => handleAddFotoUrl(pregunta.id)}
+                          className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        >🔗 URL</button>
+                      </div>
+                      <input ref={(el) => { fileInputRefs.current[pregunta.id] = el; }} type="file" accept="image/*" capture="environment"
+                        onChange={(e) => handleFileChange(pregunta.id, e)} className="hidden"
+                      />
+                      {fotos[pregunta.id] && fotos[pregunta.id].length > 0 && (
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          {fotos[pregunta.id].map((url, i) => (
+                            <div key={i} className="relative group">
+                              <img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" />
+                              <button type="button" onClick={() => handleRemoveFoto(pregunta.id, i)}
+                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {(isEditing || !currentConfig?.requireQR || qrValidated || currentConfig?.sectorizado) && currentConfig && !esGestionComercio && currentConfig.questions && currentConfig.questions.length > 0 && (
           <div className="space-y-4 border-t pt-4">
             {currentConfig.sectorizado ? (
               grupos.map(grupo => (
@@ -488,7 +784,9 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
 
         <div className="flex space-x-3 pt-4 border-t">
           {isEditing && <button type="button" onClick={onCancelEdit} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">Cancelar</button>}
-          <button type="submit" disabled={saving} className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 font-medium">{saving ? 'Guardando...' : isEditing ? '💾 Guardar Cambios' : 'Finalizar'}</button>
+          <button type="submit" disabled={saving} className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 font-medium">
+            {saving ? 'Guardando...' : isEditing ? '💾 Guardar Cambios' : isOnline ? 'Finalizar' : '📱 Guardar en dispositivo'}
+          </button>
         </div>
       </form>
     </div>

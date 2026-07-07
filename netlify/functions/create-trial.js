@@ -63,7 +63,7 @@ exports.handler = async (event) => {
       updatedAt: serverTimestamp()
     });
 
-    // Crear usuario en Firestore
+    // ✅ CREAR USUARIO CON TODOS LOS CAMPOS (INCLUYENDO TÉRMINOS)
     const userRef = doc(db, 'users', uid);
     await setDoc(userRef, {
       uid,
@@ -71,8 +71,15 @@ exports.handler = async (event) => {
       role: 'auditor',
       displayName: nombre,
       assignedSites: [siteId],
+      assignedQuestionnaires: [],
       active: true,
-      trialEndsAt,
+      isTrial: true,
+      trialEndsAt: trialEndsAt.toISOString(),
+      plan: 'trial',
+      // ✅ TÉRMINOS DE USO - CAMPOS OBLIGATORIOS
+      termsAccepted: false,
+      termsVersion: '',
+      termsAcceptedAt: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });

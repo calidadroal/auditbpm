@@ -23,15 +23,10 @@ const PlantDashboard: React.FC = () => {
 
   const [fechaDesde, setFechaDesde] = useState<string>('');
   const [fechaHasta, setFechaHasta] = useState<string>('');
-  
-  // ✅ TOGGLES PARA TODAS LAS SECCIONES
-  const [mostrarHistograma, setMostrarHistograma] = useState(true);
-  const [mostrarVencimientos, setMostrarVencimientos] = useState(true);
-  const [mostrarReincidencia, setMostrarReincidencia] = useState(true);
-  const [mostrarTendencias, setMostrarTendencias] = useState(true);
-  const [mostrarRanking, setMostrarRanking] = useState(true);
-  const [mostrarSemaforo, setMostrarSemaforo] = useState(true);
-  const [mostrarSchedules, setMostrarSchedules] = useState(true);
+  const [mostrarHistograma, setMostrarHistograma] = useState(false);
+  const [mostrarVencimientos, setMostrarVencimientos] = useState(false);
+  const [mostrarReincidencia, setMostrarReincidencia] = useState(false);
+  const [mostrarTendencias, setMostrarTendencias] = useState(true); // ✅ CORREGIDO
 
   const isAdminUser = user?.role === 'admin';
   const isGestor = user?.role === 'gestor';
@@ -182,61 +177,83 @@ const PlantDashboard: React.FC = () => {
     return resultados.sort((a, b) => b.count - a.count).slice(0, 10);
   }, [availableSites, audits, selectedSiteId, isAuditor]);
 
+
+
   const tendenciaScore = useMemo(() => {
-    if (isAuditor) return [];
+  if (isAuditor) return [];
 
-    const sitiosAMostrar = selectedSiteId
-      ? availableSites.filter(s => s.id === selectedSiteId)
-      : availableSites;
+  // Obtener sitios a mostrar
+  const sitiosAMostrar = selectedSiteId
+    ? availableSites.filter(s => s.id === selectedSiteId)
+    : availableSites;
 
-    if (sitiosAMostrar.length === 0) return [];
+  if (sitiosAMostrar.length === 0) return [];
 
-    const resultado = sitiosAMostrar
-      .map(site => {
-        const siteAudits = audits
-          .filter(a => a.siteId === site.id && a.status === 'completed')
-          .filter(a => {
-            const fecha = a.completedAt?.seconds
-              ? new Date(a.completedAt.seconds * 1000)
-              : a.completedAt
-              ? new Date(a.completedAt)
-              : null;
-            return fecha !== null && !isNaN(fecha.getTime());
-          })
-          .sort((a, b) => {
-            const fechaA = a.completedAt?.seconds
-              ? a.completedAt.seconds * 1000
-              : a.completedAt
-              ? new Date(a.completedAt).getTime()
-              : 0;
-            const fechaB = b.completedAt?.seconds
-              ? b.completedAt.seconds * 1000
-              : b.completedAt
-              ? new Date(b.completedAt).getTime()
-              : 0;
-            return fechaB - fechaA;
-          })
-          .slice(0, 3)
-          .reverse();
+  const resultado = sitiosAMostrar
+    .map(site => {
+      // Obtener auditorías completadas del sitio con fecha válida
+      const siteAudits = audits
+        .filter(a => a.siteId === site.id && a.status === 'completed')
+        .filter(a => {
+          // Verificar que tenga fecha válida
+          const fecha = a.completedAt?.seconds
+            ? new Date(a.completedAt.seconds * 1000)
+            : a.completedAt
+            ? new Date(a.completedAt)
+            : null;
+          return fecha !== null && !isNaN(fecha.getTime());
+        })
+        .sort((a, b) => {
+          // Ordenar por fecha descendente (más reciente primero)
+          const fechaA = a.completedAt?.seconds
+            ? a.completedAt.seconds * 1000
+            : a.completedAt
+            ? new Date(a.completedAt).getTime()
+            : 0;
+          const fechaB = b.completedAt?.seconds
+            ? b.completedAt.seconds * 1000
+            : b.completedAt
+            ? new Date(b.completedAt).getTime()
+            : 0;
+          return fechaB - fechaA;
+        })
+        .slice(0, 3) // Tomar las 3 más recientes
+        .reverse(); // Invertir para que queden en orden cronológico ascendente
 
-        if (siteAudits.length < 2) {
-          return null;
-        }
+      // Si hay menos de 2 auditorías, no hay tendencia
+      if (siteAudits.length < 2) {
+        return null;
+      }
 
-        const scores = siteAudits.map(a => a.score || 0);
+      const scores = siteAudits.map(a => a.score || 0);
+      const primera = scores[0];
+      const ultima = scores[scores.length - 1];
+      const diff = ultima - primera;
 
-        return {
-          site,
-          scores,
-        };
-      })
-      .filter((item): item is { site: Site; scores: number[] } =>
-        item !== null
-      );
+      let tendencia: 'subiendo' | 'bajando' | 'estable' = 'estable';
+      if (diff >= 5) tendencia = 'subiendo';
+      else if (diff <= -5) tendencia = 'bajando';
 
-    return resultado;
-  }, [availableSites, audits, selectedSiteId, isAuditor]);
+      return {
+        site,
+        scores,
+        tendencia,
+      };
+    })
+    .filter((item): item is { site: Site; scores: number[]; tendencia: 'subiendo' | 'bajando' | 'estable' } =>
+      item !== null
+    );
 
+  // 🔍 LOG DE DEPURACIÓN (eliminar después de probar)
+  console.log('📊 tendenciaScore final:', resultado);
+  console.log('📊 cantidad de sitios con tendencia:', resultado.length);
+
+  return resultado;
+}, [availableSites, audits, selectedSiteId, isAuditor]);
+
+  // ============================================================
+  // RANKING DE SITIOS
+  // ============================================================
   const rankingSitios = useMemo(() => {
     if (isAuditor) return [];
     
@@ -259,10 +276,20 @@ const PlantDashboard: React.FC = () => {
           ? siteAudits.reduce((sum, a) => sum + (a.score || 0), 0) / total 
           : 0;
         
+        const ultimas3 = siteAudits.slice(0, 3).reverse();
+        const scores = ultimas3.map(a => a.score || 0);
+        let tendencia: 'subiendo' | 'bajando' | 'estable' = 'estable';
+        if (scores.length >= 2) {
+          const diff = scores[scores.length - 1] - scores[0];
+          if (diff >= 5) tendencia = 'subiendo';
+          else if (diff <= -5) tendencia = 'bajando';
+        }
+        
         return {
           site,
           avgScore,
           total,
+          tendencia,
           ultimoScore: siteAudits.length > 0 ? siteAudits[0]?.score || 0 : 0,
         };
       })
@@ -383,9 +410,6 @@ const PlantDashboard: React.FC = () => {
         {isAuditor ? '📊 Mis Métricas' : 'Dashboard por Planta'}
       </h2>
 
-      {/* ============================================================
-          ALERTAS CONFIGURADAS
-          ============================================================ */}
       {isAdminUser && alertasConfig.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-blue-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarAlertasConfig(!mostrarAlertasConfig)}>
@@ -418,9 +442,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          FILTROS (no tiene toggle)
-          ============================================================ */}
       {!isAuditor && (
         <div className="mb-6 flex flex-wrap gap-3">
           <select value={selectedSiteId} onChange={(e) => setSelectedSiteId(e.target.value)} className="px-4 py-2 border rounded-lg bg-white">
@@ -444,9 +465,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          MÉTRICAS DE AUDITOR (no tiene toggle)
-          ============================================================ */}
       {isAuditor && auditorMetrics && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white border rounded-lg p-4 text-center">
@@ -472,9 +490,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          ESTADÍSTICAS DE SITIOS (no tiene toggle)
-          ============================================================ */}
       {!isAuditor && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {siteStats.map(({ site, total, completed, avgScore }) => (
@@ -492,205 +507,141 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          SEMÁFORO DE RIESGO (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && semaforoRiesgo.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
-          <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarSemaforo(!mostrarSemaforo)}>
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-red-600" />
-              <h3 className="font-semibold">🚨 Semáforo de Riesgo</h3>
-              <span className="text-xs text-gray-400 ml-auto">{semaforoRiesgo.length} sitios</span>
-            </div>
-            {mostrarSemaforo ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          <div className="px-6 py-4 bg-gray-50 border-b flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-red-600" />
+            <h3 className="font-semibold">🚨 Semáforo de Riesgo</h3>
           </div>
-          {mostrarSemaforo && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Última Auditoría</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Críticos</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Días sin auditar</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Riesgo</th></tr></thead>
-                <tbody className="divide-y divide-gray-200">
-                  {semaforoRiesgo.map(({ site, ultimaAuditoria, criticos, riesgo, color, diasDesdeUltima, esChecklist }) => (
-                    <tr key={site.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium">{site.name}</td>
-                      <td className="px-4 py-3 text-sm">
-                        {ultimaAuditoria ? (
-                          <>
-                            {new Date(ultimaAuditoria.completedAt?.seconds ? ultimaAuditoria.completedAt.seconds * 1000 : ultimaAuditoria.completedAt).toLocaleDateString('es-AR')}
-                            <span className="ml-1 text-xs text-gray-400">({ultimaAuditoria.score || 0}%)</span>
-                            {esChecklist && <span className="ml-1 text-xs text-red-500">🏛️</span>}
-                          </>
-                        ) : 'Sin datos'}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-bold text-red-600">{criticos}</td>
-                      <td className="px-4 py-3 text-sm">
-                        {diasDesdeUltima !== null ? (
-                          <span className={diasDesdeUltima > 30 ? 'text-red-600 font-bold' : diasDesdeUltima > 15 ? 'text-yellow-600' : 'text-green-600'}>
-                            {diasDesdeUltima} días
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${color}`}>{riesgo}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Última Auditoría</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Críticos</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Días sin auditar</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Riesgo</th></tr></thead>
+              <tbody className="divide-y divide-gray-200">
+                {semaforoRiesgo.map(({ site, ultimaAuditoria, criticos, riesgo, color, diasDesdeUltima, esChecklist }) => (
+                  <tr key={site.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium">{site.name}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {ultimaAuditoria ? (
+                        <>
+                          {new Date(ultimaAuditoria.completedAt?.seconds ? ultimaAuditoria.completedAt.seconds * 1000 : ultimaAuditoria.completedAt).toLocaleDateString('es-AR')}
+                          <span className="ml-1 text-xs text-gray-400">({ultimaAuditoria.score || 0}%)</span>
+                          {esChecklist && <span className="ml-1 text-xs text-red-500">🏛️</span>}
+                        </>
+                      ) : 'Sin datos'}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-bold text-red-600">{criticos}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {diasDesdeUltima !== null ? (
+                        <span className={diasDesdeUltima > 30 ? 'text-red-600 font-bold' : diasDesdeUltima > 15 ? 'text-yellow-600' : 'text-green-600'}>
+                          {diasDesdeUltima} días
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${color}`}>{riesgo}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
-
-      {/* ============================================================
-          RANKING DE SITIOS (CON TOGGLE)
+           {/* ============================================================
+          RANKING DE SITIOS - NUEVA SECCIÓN (CORREGIDO)
           ============================================================ */}
       {!isAuditor && rankingSitios.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
-          <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarRanking(!mostrarRanking)}>
-            <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-600" />
-              <h3 className="font-semibold">🏆 Ranking de Sitios</h3>
-              <span className="text-xs text-gray-400 ml-auto">{rankingSitios.length} sitios</span>
-            </div>
-            {mostrarRanking ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          <div className="px-6 py-4 bg-gray-50 border-b flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-yellow-600" />
+            <h3 className="font-semibold">🏆 Ranking de Sitios</h3>
+            <span className="text-xs text-gray-400 ml-auto">
+              Basado en score promedio
+            </span>
           </div>
-          {mostrarRanking && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Score Promedio</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Último Score</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Auditorías</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {rankingSitios.map((item, index) => {
-                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
-                    return (
-                      <tr key={item.site.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-bold text-gray-500">{medal}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{item.site.name}</td>
-                        <td className="px-4 py-3 text-sm font-bold">
-                          <span className={getScoreColor(item.avgScore)}>
-                            {item.avgScore.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={getScoreColor(item.ultimoScore)}>
-                            {item.ultimoScore}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{item.total}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Score Promedio</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Último Score</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Auditorías</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tendencia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {rankingSitios.map((item, index) => {
+                  const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+                  const TendenciaIcon = item.tendencia === 'subiendo' 
+                    ? TrendingUp 
+                    : item.tendencia === 'bajando' 
+                      ? TrendingDown 
+                      : Minus;
+                  const tendenciaColor = item.tendencia === 'subiendo' 
+                    ? 'text-green-600' 
+                    : item.tendencia === 'bajando' 
+                      ? 'text-red-600' 
+                      : 'text-yellow-600';
+                  return (
+                    <tr key={item.site.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-bold text-gray-500">{medal}</td>
+                      <td className="px-4 py-3 text-sm font-medium">{item.site.name}</td>
+                      <td className="px-4 py-3 text-sm font-bold">
+                        <span className={getScoreColor(item.avgScore)}>
+                          {item.avgScore.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={getScoreColor(item.ultimoScore)}>
+                          {item.ultimoScore}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{item.total}</td>
+                      <td className="px-4 py-3">
+                        <TendenciaIcon className={`w-4 h-4 ${tendenciaColor}`} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* ============================================================
-          TENENCIA DE SCORE (CON NÚMEROS REALES Y FLECHAS)
-          ============================================================ */}
-      {!isAuditor && (
+      {!isAuditor && tendenciaScore.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarTendencias(!mostrarTendencias)}>
             <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-blue-600" />
               <h3 className="font-semibold">📈 Tendencia de Score (últimas 3)</h3>
-              <span className="text-xs text-gray-400 ml-auto">{tendenciaScore.length} sitios</span>
             </div>
             {mostrarTendencias ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </div>
           {mostrarTendencias && (
-            <div className="p-4">
-              {tendenciaScore.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">No hay suficientes auditorías para calcular tendencias</p>
-                  <p className="text-xs text-gray-400 mt-1">Se necesitan al menos 2 auditorías por sitio</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th>
-                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Últimos 3 Scores</th>
-                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Variación</th>
-                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Tendencia</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {tendenciaScore.map(({ site, scores }) => {
-                        const primera = scores[0];
-                        const ultima = scores[scores.length - 1];
-                        const diff = ultima - primera;
-                        
-                        let icono = '➡️';
-                        let color = 'text-yellow-600';
-                        let label = `${diff.toFixed(1)}%`;
-                        
-                        if (diff >= 5) {
-                          icono = '⬆️';
-                          color = 'text-green-600';
-                          label = `+${diff.toFixed(1)}%`;
-                        } else if (diff <= -5) {
-                          icono = '⬇️';
-                          color = 'text-red-600';
-                          label = `${diff.toFixed(1)}%`;
-                        } else {
-                          icono = '➡️';
-                          color = 'text-yellow-600';
-                          label = `${diff.toFixed(1)}%`;
-                        }
-                        
-                        return (
-                          <tr key={site.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm font-medium">{site.name}</td>
-                            <td className="px-4 py-3 text-center">
-                              <div className="flex justify-center gap-1">
-                                {scores.map((s, i) => (
-                                  <span 
-                                    key={i} 
-                                    className={`px-2 py-0.5 rounded text-xs font-bold bg-white border ${
-                                      i === scores.length - 1 ? 'ring-1 ring-blue-300' : ''
-                                    } ${getScoreColor(s)}`}
-                                  >
-                                    {s.toFixed(0)}%
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`text-sm font-bold ${color}`}>
-                                {label}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`text-xl ${color}`}>
-                                {icono}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+            <div className="p-4 space-y-3">
+              {tendenciaScore.map(({ site, scores, tendencia }) => {
+                const Icono = tendencia === 'subiendo' ? TrendingUp : tendencia === 'bajando' ? TrendingDown : Minus;
+                const colorTendencia = tendencia === 'subiendo' ? 'text-green-600' : tendencia === 'bajando' ? 'text-red-600' : 'text-yellow-600';
+                return (
+                  <div key={site.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium">{site.name}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-1">
+                        {scores.map((s, i) => (
+                          <span key={i} className={`px-2 py-0.5 rounded text-xs font-bold ${getScoreColor(s)} bg-white border`}>{s.toFixed(0)}%</span>
+                        ))}
+                      </div>
+                      <Icono className={`w-4 h-4 ${colorTendencia}`} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* ============================================================
-          DESVÍOS REINCIDENTES (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && reincidenciaDesvios.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarReincidencia(!mostrarReincidencia)}>
@@ -721,9 +672,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          VENCIMIENTOS DE REQUISITOS (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && selectedSiteId && vencimientosRequisitos.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarVencimientos(!mostrarVencimientos)}>
@@ -758,9 +706,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          HISTOGRAMA (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && selectedSiteId && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarHistograma(!mostrarHistograma)}>
@@ -833,54 +778,38 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          PRÓXIMAS AUDITORÍAS PROGRAMADAS (CON TOGGLE)
-          ============================================================ */}
       {canSeeSchedules && !isAuditor && (
         <div className="bg-white border rounded-lg mb-8">
-          <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarSchedules(!mostrarSchedules)}>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold">Próximas Auditorías Programadas</h3>
-              <span className="text-xs text-gray-400 ml-auto">{filteredSchedules.length} programaciones</span>
+          <div className="px-6 py-4 bg-gray-50 border-b flex items-center gap-2"><Calendar className="w-5 h-5 text-blue-600" /><h3 className="font-semibold">Próximas Auditorías Programadas</h3></div>
+          {filteredSchedules.length === 0 ? (
+            <div className="p-6 text-center text-sm text-gray-400">No hay programaciones.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Frecuencia</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Próxima</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th></tr></thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredSchedules.map(s => {
+                    const proxima = s.proximaAuditoria?.seconds ? new Date(s.proximaAuditoria.seconds * 1000) : new Date(s.proximaAuditoria);
+                    const dias = Math.ceil((proxima.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <tr key={s.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-sm font-medium">{s.siteName}</td><td className="px-4 py-2 text-sm capitalize">{s.frecuencia}</td>
+                        <td className="px-4 py-2 text-sm">{proxima.toLocaleDateString('es-AR')}<span className="text-xs text-gray-500 ml-1">({dias > 0 ? `${dias}d` : 'hoy'})</span></td>
+                        <td className="px-4 py-2">
+                          {s.estado === 'al_dia' && <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 flex items-center gap-1 w-fit"><CheckCircle className="w-3 h-3" /> Al día</span>}
+                          {s.estado === 'proxima' && <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 flex items-center gap-1 w-fit"><Clock className="w-3 h-3" /> Próxima</span>}
+                          {s.estado === 'vencida' && <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Vencida</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            {mostrarSchedules ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </div>
-          {mostrarSchedules && (
-            filteredSchedules.length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-400">No hay programaciones.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Frecuencia</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Próxima</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th></tr></thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {filteredSchedules.map(s => {
-                      const proxima = s.proximaAuditoria?.seconds ? new Date(s.proximaAuditoria.seconds * 1000) : new Date(s.proximaAuditoria);
-                      const dias = Math.ceil((proxima.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                      return (
-                        <tr key={s.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-sm font-medium">{s.siteName}</td>
-                          <td className="px-4 py-2 text-sm capitalize">{s.frecuencia}</td>
-                          <td className="px-4 py-2 text-sm">{proxima.toLocaleDateString('es-AR')}<span className="text-xs text-gray-500 ml-1">({dias > 0 ? `${dias}d` : 'hoy'})</span></td>
-                          <td className="px-4 py-2">
-                            {s.estado === 'al_dia' && <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 flex items-center gap-1 w-fit"><CheckCircle className="w-3 h-3" /> Al día</span>}
-                            {s.estado === 'proxima' && <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 flex items-center gap-1 w-fit"><Clock className="w-3 h-3" /> Próxima</span>}
-                            {s.estado === 'vencida' && <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Vencida</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
           )}
         </div>
       )}
 
-      {/* ============================================================
-          ÚLTIMAS AUDITORÍAS (no tiene toggle)
-          ============================================================ */}
       <div className="bg-white border rounded-lg">
         <div className="px-6 py-4 bg-gray-50 border-b">
           <h3 className="font-semibold">
