@@ -55,7 +55,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [audits, setAudits] = useState<AuditRecord[]>([]);
   const [selectedSector, setSelectedSector] = useState<any | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
-  const [assignedQuestionnaires, setAssignedQuestionnaires] = useState<string[]>([]);
 
   const isAuthenticated = !!user;
 
@@ -77,24 +76,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const canVerSusAuditorias = tienePermiso(user, 'ver_sus_auditorias');
 
   const loading = authLoading || (isAuthenticated && dataLoading);
-
-  // Cargar assignedQuestionnaires
-  useEffect(() => {
-    if (!user) { setAssignedQuestionnaires([]); return; }
-    if (user.role === 'admin') { setAssignedQuestionnaires([]); return; }
-
-    const loadAssigned = async () => {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setAssignedQuestionnaires(userDoc.data().assignedQuestionnaires || []);
-        }
-      } catch (error) {
-        console.error('Error cargando cuestionarios asignados:', error);
-      }
-    };
-    loadAssigned();
-  }, [user]);
 
   // Cargar sitios
   useEffect(() => {
@@ -119,7 +100,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return unsubscribe;
   }, [user]);
 
-  // ✅ Cargar cuestionarios - CORREGIDO
+  // Cargar cuestionarios
   useEffect(() => {
     if (!user) { setQuestionnaires([]); return; }
 
@@ -132,27 +113,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (user.role !== 'admin') {
         const assignedSites = user.assignedSites || [];
-        const assignedQuestionnaires = user.assignedQuestionnaires || [];
         
         questData = questData.filter((q) => {
-          // ✅ Si el cuestionario está asignado directamente al usuario, mostrarlo
-          if (assignedQuestionnaires.includes(q.id)) {
-            return true;
-          }
-          
-          // ✅ Si el cuestionario tiene sitioIds, verificar que coincida con los sitios del usuario
+          // Si el cuestionario tiene sitioIds, verificar que coincida con los sitios del usuario
           if (q.sitioIds && q.sitioIds.length > 0) {
             return q.sitioIds.some(siteId => assignedSites.includes(siteId));
           }
-          
-          return false;
+          // Si no tiene sitioIds, mostrarlo a todos
+          return true;
         });
       }
 
       setQuestionnaires(questData);
     });
     return unsubscribe;
-  }, [user, assignedQuestionnaires]);
+  }, [user]);
 
   // Cargar auditorías
   useEffect(() => {

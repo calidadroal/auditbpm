@@ -112,7 +112,7 @@ export interface QuestionnaireConfig {
   requireLocation: boolean;
   questions: QuestionnaireQuestion[];
   preguntasGestion?: PreguntaGestion[];
-  sitioIds: string[]; // ✅ NUEVO - Sitios donde se puede usar este cuestionario
+  sitioIds: string[];
   qrGroups?: string[];
   qrGroupsConfig?: { [grupo: string]: QRGroupConfig };
   sectorizado?: boolean;
@@ -323,17 +323,9 @@ export const ROLES_PERMISOS: Record<UserRole, Record<PermisoNombre, boolean>> = 
     ver_dashboard: false, crear_sitio: false, editar_sitio: false,
   },
   gestor: {
-    crear_auditoria: true,
-    ejecutar_auditoria: true,
-    ver_sus_auditorias: true,
-    ver_todas_auditorias: true,
-    exportar_reportes: true,
-    gestionar_checklist: true,
-    gestionar_usuarios: false,
-    modificar_permisos: false,
-    ver_dashboard: true,
-    crear_sitio: true,
-    editar_sitio: true,
+    crear_auditoria: true, ejecutar_auditoria: true, ver_sus_auditorias: true, ver_todas_auditorias: true,
+    exportar_reportes: true, gestionar_checklist: true, gestionar_usuarios: false, modificar_permisos: false,
+    ver_dashboard: true, crear_sitio: true, editar_sitio: true,
   },
   lector: {
     crear_auditoria: false, ejecutar_auditoria: false, ver_sus_auditorias: false, ver_todas_auditorias: true,
@@ -346,17 +338,9 @@ export const ROLES_PERMISOS: Record<UserRole, Record<PermisoNombre, boolean>> = 
     ver_dashboard: false, crear_sitio: false, editar_sitio: false,
   },
   coordinador: {
-    crear_auditoria: true,
-    ejecutar_auditoria: true,
-    ver_sus_auditorias: true,
-    ver_todas_auditorias: false,
-    exportar_reportes: true,
-    gestionar_checklist: true,
-    gestionar_usuarios: false,
-    modificar_permisos: false,
-    ver_dashboard: true,
-    crear_sitio: false,
-    editar_sitio: false,
+    crear_auditoria: true, ejecutar_auditoria: true, ver_sus_auditorias: true, ver_todas_auditorias: false,
+    exportar_reportes: true, gestionar_checklist: true, gestionar_usuarios: false, modificar_permisos: false,
+    ver_dashboard: true, crear_sitio: false, editar_sitio: false,
   },
 };
 
@@ -495,4 +479,63 @@ export interface DocumentoUsuario {
   activo: boolean;
   createdAt: any;
   updatedAt: any;
+}
+
+// ============================================================
+// ETAPA 4: FACTURACIÓN
+// ============================================================
+
+export type EstadoPago = 'al_dia' | 'alertado' | 'solo_lectura' | 'suspendido';
+export type PlanEmpresa = 'basico' | 'empresa' | 'premium';
+
+export interface Empresa {
+  id: string;
+  nombre: string;
+  cuit: string;
+  direccion?: string;
+  telefono?: string;
+  email: string;
+  estadoPago: EstadoPago;
+  fechaUltimoCalculo: any;
+  plan: PlanEmpresa;
+  usuariosAsignados: string[];
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface Factura {
+  id: string;
+  empresaId: string;
+  numero: string;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  monto: number;
+  estado: 'pendiente' | 'pagada' | 'vencida' | 'cancelada';
+  cae: string | null;
+  caeVencimiento: string | null;
+  pdfUrl: string | null;
+  puntoVenta: number | null;
+  tipoComprobante: number | null;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface FacturacionConfig {
+  empresaId: string;
+  emailsDestino: string[];
+  diasAlerta: number[];
+  suspensionAutomatica: boolean;
+  arcaHabilitado: boolean;
+  fechaLimiteManual: string | null;
+  updatedAt: any;
+}
+
+export interface HistorialEstado {
+  id: string;
+  empresaId: string;
+  estadoAnterior: EstadoPago;
+  estadoNuevo: EstadoPago;
+  motivo: string;
+  timestamp: any;
+  origen: 'cron' | 'admin_manual';
 }

@@ -1,8 +1,6 @@
 // src/utils/pdfGenerator.ts
 // ============================================================
-// PDF GENERATOR - Arquitectura refactorizada (V1 + V2)
-// Misma funcionalidad, mejor organización interna.
-// Preparado para logo, QR, fotos y anexos en el futuro.
+// PDF GENERATOR - TodoEnRegla
 // ============================================================
 
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -15,10 +13,6 @@ import {
   calcularScoreChecklist,
   clasificarRiesgoChecklist,
 } from './auditUtils';
-
-// ============================================================
-// TIPOS INTERNOS
-// ============================================================
 
 interface PdfContext {
   page: any;
@@ -67,13 +61,9 @@ interface Spacing {
   box: number;
 }
 
-// ============================================================
-// PALETA DE COLORES (rgb directo, sin objetos intermedios)
-// ============================================================
-
 function createColors(): StyleColors {
   return {
-    principal: rgb(0.10, 0.23, 0.36),
+    principal: rgb(0.06, 0.69, 0.51),
     secundario: rgb(0.17, 0.24, 0.31),
     etiqueta: rgb(0.20, 0.27, 0.33),
     valor: rgb(0.17, 0.24, 0.31),
@@ -96,10 +86,6 @@ function createColors(): StyleColors {
   };
 }
 
-// ============================================================
-// ESPACIADO (sin números mágicos)
-// ============================================================
-
 function createSpacing(): Spacing {
   return {
     lineHeight: 12,
@@ -111,10 +97,6 @@ function createSpacing(): Spacing {
     box: 8,
   };
 }
-
-// ============================================================
-// NORMALIZAR TEXTO (sin emojis ni caracteres especiales)
-// ============================================================
 
 function normalizarTexto(texto: string): string {
   if (!texto) return '';
@@ -132,10 +114,6 @@ function normalizarTexto(texto: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
-
-// ============================================================
-// MOTOR DE PÁRRAFOS
-// ============================================================
 
 function splitTextToSize(text: string, font: any, fontSize: number, maxWidth: number): string[] {
   const words = text.split(' ');
@@ -177,10 +155,6 @@ function drawParagraphBold(ctx: PdfContext, lines: string[], x: number, fontSize
   return lines.length * lh;
 }
 
-// ============================================================
-// GESTOR DE PÁGINAS
-// ============================================================
-
 function ensureSpace(ctx: PdfContext, height: number): void {
   if (ctx.cursorY - height < ctx.marginBottom) {
     newPage(ctx);
@@ -190,7 +164,7 @@ function ensureSpace(ctx: PdfContext, height: number): void {
 function newPage(ctx: PdfContext, tituloSeccion?: string): void {
   ctx.page = (ctx as any).doc.addPage([ctx.pageWidth, ctx.pageHeight]);
   ctx.pageNumber++;
-  ctx.cursorY = ctx.pageHeight - 80;
+  ctx.cursorY = ctx.pageHeight - 85;
   drawHeader(ctx);
   drawFooter(ctx);
   if (tituloSeccion) {
@@ -205,30 +179,58 @@ function newPage(ctx: PdfContext, tituloSeccion?: string): void {
   }
 }
 
-// ============================================================
-// COMPONENTES VISUALES
-// ============================================================
-
 function drawHeader(ctx: PdfContext): void {
-  const headerHeight = 45;
+  const headerHeight = 68;
   ctx.page.drawRectangle({
     x: 0,
-    y: ctx.pageHeight - 20,
+    y: ctx.pageHeight - headerHeight,
     width: ctx.pageWidth,
     height: headerHeight,
     color: ctx.colors.principal,
   });
-  const titulo = (ctx as any).esChecklist ? 'CHECKLIST MUNICIPAL' : 'INFORME DE AUDITORIA BPM';
+
+  const titulo = (ctx as any).esChecklist ? 'CHECKLIST MUNICIPAL' : 'INFORME DE AUDITORIA';
   const subtitulo = (ctx as any).esChecklist
     ? 'Control Interno - Evaluacion de Riesgo de Clausura'
-    : 'Sistema de Gestion de Calidad - AuditBPM Gastronomia';
+    : 'Sistema de Gestion de Calidad - TodoEnRegla';
   const fecha = (ctx as any).fecha;
   const auditor = (ctx as any).audit.auditorName || (ctx as any).audit.auditorEmail || 'N/D';
 
-  ctx.page.drawText(titulo, { x: ctx.marginLeft, y: ctx.pageHeight - 35, size: 16, font: ctx.boldFont, color: ctx.colors.blanco });
-  ctx.page.drawText(subtitulo, { x: ctx.marginLeft, y: ctx.pageHeight - 50, size: 8, font: ctx.font, color: ctx.colors.blanco });
-  ctx.page.drawText(`Fecha: ${fecha}`, { x: ctx.marginLeft, y: ctx.pageHeight - 60, size: 7, font: ctx.font, color: ctx.colors.blanco });
-  ctx.page.drawText(`Auditor: ${auditor}`, { x: ctx.marginLeft + 120, y: ctx.pageHeight - 60, size: 7, font: ctx.font, color: ctx.colors.blanco });
+  const tituloWidth = ctx.boldFont.widthOfTextAtSize(titulo, 14);
+  const xTitulo = (ctx.pageWidth - tituloWidth) / 2;
+  ctx.page.drawText(titulo, {
+    x: xTitulo,
+    y: ctx.pageHeight - 36,
+    size: 14,
+    font: ctx.boldFont,
+    color: ctx.colors.blanco,
+  });
+
+  const subtituloWidth = ctx.font.widthOfTextAtSize(subtitulo, 8);
+  const xSubtitulo = (ctx.pageWidth - subtituloWidth) / 2;
+  ctx.page.drawText(subtitulo, {
+    x: xSubtitulo,
+    y: ctx.pageHeight - 50,
+    size: 8,
+    font: ctx.font,
+    color: ctx.colors.blanco,
+  });
+
+  ctx.page.drawText(`Fecha: ${fecha}`, {
+    x: ctx.marginLeft,
+    y: ctx.pageHeight - 62,
+    size: 7,
+    font: ctx.font,
+    color: ctx.colors.blanco,
+  });
+
+  ctx.page.drawText(`Auditor: ${auditor}`, {
+    x: ctx.marginLeft + 120,
+    y: ctx.pageHeight - 62,
+    size: 7,
+    font: ctx.font,
+    color: ctx.colors.blanco,
+  });
 }
 
 function drawFooter(ctx: PdfContext): void {
@@ -238,11 +240,29 @@ function drawFooter(ctx: PdfContext): void {
     thickness: 0.2,
     color: ctx.colors.separador,
   });
-  ctx.page.drawText(`AuditBPM Gastronomia - Generado el ${new Date().toLocaleDateString('es-AR')}`, {
-    x: ctx.marginLeft, y: 40, size: 7, font: ctx.font, color: ctx.colors.norma,
+
+  ctx.page.drawText(`TodoEnRegla - Generado el ${new Date().toLocaleDateString('es-AR')}`, {
+    x: ctx.marginLeft,
+    y: 40,
+    size: 7,
+    font: ctx.font,
+    color: ctx.colors.norma,
   });
+
+  ctx.page.drawText(`www.todoenregla.com.ar`, {
+    x: ctx.marginLeft + 160,
+    y: 40,
+    size: 7,
+    font: ctx.font,
+    color: ctx.colors.principal,
+  });
+
   ctx.page.drawText(`Pagina ${ctx.pageNumber}`, {
-    x: ctx.pageWidth - ctx.marginRight, y: 40, size: 7, font: ctx.font, color: ctx.colors.norma,
+    x: ctx.pageWidth - ctx.marginRight,
+    y: 40,
+    size: 7,
+    font: ctx.font,
+    color: ctx.colors.norma,
   });
 }
 
@@ -335,7 +355,6 @@ function drawQuestionBlock(ctx: PdfContext, response: any, index: number, auditN
 
   ensureSpace(ctx, totalHeight);
 
-  // Color de fondo y resultado
   let bgColor = ctx.colors.blanco;
   let resultText = 'NO APLICA';
   let resultColor = ctx.colors.noAplica;
@@ -354,16 +373,13 @@ function drawQuestionBlock(ctx: PdfContext, response: any, index: number, auditN
   ctx.page.drawText(resultText, { x: ctx.marginLeft + ctx.contentWidth - 90, y: y2, size: 8, font: ctx.boldFont, color: resultColor });
   y2 -= ctx.spacing.section;
 
-  // Pregunta
   ctx.cursorY = y2;
   drawParagraph(ctx, lineasPregunta, ctx.marginLeft + 10, 8, ctx.colors.pregunta);
   y2 = ctx.cursorY - ctx.spacing.small;
 
-  // Norma
   ctx.page.drawText(normaTexto, { x: ctx.marginLeft + 10, y: y2, size: 6.5, font: ctx.font, color: ctx.colors.norma });
   y2 -= ctx.spacing.section;
 
-  // Comentario
   if (lineasComentario.length > 0) {
     ctx.cursorY = y2;
     drawParagraph(ctx, lineasComentario, ctx.marginLeft + 10, 7, ctx.colors.comentarioTexto, ctx.spacing.commentLine);
@@ -373,10 +389,6 @@ function drawQuestionBlock(ctx: PdfContext, response: any, index: number, auditN
   return totalHeight;
 }
 
-// ============================================================
-// GEOLOCALIZACIÓN CON LINK A GOOGLE MAPS (SIN EMOJIS)
-// ============================================================
-
 function drawGeoLocation(ctx: PdfContext, geo: any): void {
   const lat = geo.lat.toFixed(6);
   const lng = geo.lng.toFixed(6);
@@ -384,13 +396,11 @@ function drawGeoLocation(ctx: PdfContext, geo: any): void {
   const geoText = `[GPS] Ubicacion: Lat: ${lat}  Lng: ${lng}${precision}`;
   const mapsUrl = `https://www.google.com/maps?q=${geo.lat},${geo.lng}`;
   const linkText = `Ver en Google Maps: ${mapsUrl}`;
-  
+
   ensureSpace(ctx, ctx.spacing.section * 2 + ctx.spacing.small);
-  
-  // Box con coordenadas
+
   drawColoredBox(ctx, ctx.spacing.section, ctx.colors.geoBg, geoText, 8, ctx.colors.principal);
-  
-  // Link (texto plano)
+
   ctx.page.drawText(linkText, {
     x: ctx.marginLeft,
     y: ctx.cursorY,
@@ -401,21 +411,45 @@ function drawGeoLocation(ctx: PdfContext, geo: any): void {
   ctx.cursorY -= ctx.spacing.section;
 }
 
+// ============================================================
+// OBSERVACIONES - CORREGIDO CON TOPOFFSET
+// ============================================================
+
 function drawObservations(ctx: PdfContext, observaciones: string): void {
   const obsText = normalizarTexto(observaciones);
   const lines = splitTextToSize(obsText, ctx.font, 9, ctx.contentWidth - 10);
-  const alturaObs = lines.length * ctx.spacing.lineHeight + ctx.spacing.box + ctx.spacing.small;
+
+  // ✅ topOffset = distancia entre el techo de la caja y la BASELINE del primer renglón
+  const topOffset = 12;
+  const bottomPadding = 8;
+  const alturaObs = topOffset + (lines.length - 1) * ctx.spacing.lineHeight + bottomPadding;
+
   ensureSpace(ctx, alturaObs + ctx.spacing.section);
-  ctx.page.drawText('OBSERVACIONES GENERALES', { x: ctx.marginLeft, y: ctx.cursorY, size: 12, font: ctx.boldFont, color: ctx.colors.secundario });
-  ctx.cursorY -= ctx.spacing.section;
-  ctx.page.drawRectangle({
-    x: ctx.marginLeft, y: ctx.cursorY - alturaObs,
-    width: ctx.contentWidth, height: alturaObs,
-    color: ctx.colors.comentarioBg, borderColor: ctx.colors.separador, borderWidth: 0.5,
+
+  ctx.page.drawText('OBSERVACIONES GENERALES', {
+    x: ctx.marginLeft,
+    y: ctx.cursorY,
+    size: 12,
+    font: ctx.boldFont,
+    color: ctx.colors.secundario,
   });
-  ctx.cursorY -= ctx.spacing.small;
+  ctx.cursorY -= ctx.spacing.section;
+
+  const boxTop = ctx.cursorY;
+  ctx.page.drawRectangle({
+    x: ctx.marginLeft,
+    y: boxTop - alturaObs,
+    width: ctx.contentWidth,
+    height: alturaObs,
+    color: ctx.colors.comentarioBg,
+    borderColor: ctx.colors.separador,
+    borderWidth: 0.5,
+  });
+
+  ctx.cursorY = boxTop - topOffset;
   drawParagraph(ctx, lines, ctx.marginLeft + 5, 9, ctx.colors.comentarioTexto);
-  ctx.cursorY -= ctx.spacing.padding;
+
+  ctx.cursorY = boxTop - alturaObs - ctx.spacing.padding;
 }
 
 function drawSystematicFindings(ctx: PdfContext, desvios: string[]): void {
@@ -431,7 +465,7 @@ function drawSystematicFindings(ctx: PdfContext, desvios: string[]): void {
 }
 
 // ============================================================
-// FUNCIÓN PRINCIPAL (solo coordina)
+// FUNCIÓN PRINCIPAL
 // ============================================================
 
 export async function generarPDF(audit: AuditRecord): Promise<void> {
@@ -468,7 +502,7 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     const spacing = createSpacing();
 
     let page = doc.addPage([pageWidth, pageHeight]);
-    let cursorY = pageHeight - 80;
+    let cursorY = pageHeight - 85;
     let pageNumber = 1;
 
     const ctx: PdfContext = {
@@ -479,7 +513,6 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
       spacing, colors,
     } as any;
 
-    // Inyectar dependencias para funciones internas
     (ctx as any).doc = doc;
     (ctx as any).esChecklist = esChecklist;
     (ctx as any).fecha = fecha;
@@ -487,11 +520,9 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     (ctx as any).newPage = (titulo?: string) => newPage(ctx, titulo);
     (ctx as any).ensureSpace = (h: number) => ensureSpace(ctx, h);
 
-    // Primera página
     drawHeader(ctx);
     drawFooter(ctx);
 
-    // DATOS DEL CONTROL
     drawSectionTitle(ctx, 'DATOS DEL CONTROL');
     const datos: [string, string][] = [
       ['Establecimiento:', audit.establecimiento || audit.siteName || 'No especificado'],
@@ -505,13 +536,10 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     for (const [label, value] of datos) drawInfoRow(ctx, label, value);
     ctx.cursorY -= spacing.padding;
 
-    // GEOLOCALIZACION
     if (audit.geolocalizacion) drawGeoLocation(ctx, audit.geolocalizacion);
 
-    // OBSERVACIONES
     if (audit.observacionesGenerales?.trim()) drawObservations(ctx, audit.observacionesGenerales);
 
-    // RESULTADO
     ctx.cursorY -= spacing.padding;
     drawSectionTitle(ctx, 'RESULTADO DE LA EVALUACION');
     ctx.page.drawText(`${esChecklist ? 'Cumplimiento:' : 'Score:'} ${resultado.score}%`, {
@@ -521,7 +549,6 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     drawProgressBar(ctx, resultado.score);
     drawResultBox(ctx, clasifLabel, clasificacion);
 
-    // RESUMEN CUANTITATIVO
     const resumenData = esChecklist
       ? [
           { label: 'Items que Cumplen', value: resultado.totalCumplen, color: colors.cumple },
@@ -541,7 +568,6 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     for (const item of resumenData) drawSummaryItem(ctx, item.label, item.value, item.color);
     ctx.cursorY -= spacing.padding;
 
-    // CONCLUSION
     const conclusionLines = splitTextToSize(conclusion, font, 9, ctx.contentWidth - 10);
     const alturaConclusion = conclusionLines.length * spacing.lineHeight + spacing.section + spacing.padding;
     ensureSpace(ctx, alturaConclusion);
@@ -550,19 +576,16 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     drawParagraph(ctx, conclusionLines, ctx.marginLeft + 5, 9, colors.comentarioTexto);
     ctx.cursorY -= spacing.padding;
 
-    // DESVIOS SISTEMATICOS
     if (audit.recurrenciaDetectada && audit.desviosSistematicos.length > 0) {
       drawSystematicFindings(ctx, audit.desviosSistematicos);
     }
 
-    // PREGUNTAS
     ctx.cursorY -= spacing.padding;
     drawSectionTitle(ctx, 'DETALLE DE PREGUNTAS');
     for (let i = 0; i < responsesFiltradas.length; i++) {
       drawQuestionBlock(ctx, responsesFiltradas[i], i, audit.norma);
     }
 
-    // GUARDAR Y DESCARGAR
     const pdfBytes = await doc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);

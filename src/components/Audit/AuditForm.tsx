@@ -704,7 +704,14 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                       {q.instructions && <p className="text-xs text-gray-400 italic mb-2">📋 {q.instructions}</p>}
                       <div className="flex flex-wrap gap-2 mb-2">{OPCIONES.map(op => (<button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }} className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{op.label}</button>))}</div>
                       <div className="space-y-2">
-                        <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-3 py-1.5 border rounded text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} />
+                        {/* ✅ CAMBIO: Aumentado el padding del input de comentario */}
+                        <input
+                          type="text"
+                          value={comentarios[q.id] || ''}
+                          onChange={(e) => handleComentario(q.id, e.target.value)}
+                          placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'}
+                          className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`}
+                        />
                         <div><div className="flex gap-2 flex-wrap"><button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button><button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button></div><input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />{fotos[q.id] && fotos[q.id].length > 0 && (<div className="flex gap-2 mt-2 flex-wrap">{fotos[q.id].map((url, i) => (<div key={i} className="relative group"><img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" /><button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button></div>))}</div>)}</div>
                       </div>
                     </div>
@@ -746,9 +753,13 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                     }
                   </div>
                   <div className="space-y-2">
-                    <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)}
+                    {/* ✅ CAMBIO: Aumentado el padding del input de comentario */}
+                    <input
+                      type="text"
+                      value={comentarios[q.id] || ''}
+                      onChange={(e) => handleComentario(q.id, e.target.value)}
                       placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'}
-                      className={`w-full px-3 py-1.5 border rounded text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`}
                     />
                     <div>
                       <div className="flex gap-2 flex-wrap">

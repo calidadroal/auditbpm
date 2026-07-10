@@ -1,9 +1,9 @@
 // src/App.tsx
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, ListChecks, Home, FileSpreadsheet, QrCode, User, Calendar, MessageSquare, Bell, FileCheck, WifiOff, Users } from 'lucide-react';
+import { TrendingUp, ListChecks, Home, FileSpreadsheet, QrCode, User, Calendar, MessageSquare, Bell, FileCheck, WifiOff, Users, Building2, CreditCard } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useAppContext } from './context/AppContext';
-import { syncOfflineAudits, getPendingSyncCount } from './firebase';
+import { syncOfflineAudits, getPendingSyncCount, getEmpresaByUserId } from './firebase';
 import LoginScreen from './components/Auth/LoginScreen';
 import TermsAcceptance from './components/Auth/TermsAcceptance';
 import Header from './components/Layout/Header';
@@ -21,9 +21,12 @@ import AdminSolicitudes from './components/Solicitudes/AdminSolicitudes';
 import NotificationsPanel from './components/Notifications/NotificationsPanel';
 import RequisitosManager from './components/Admin/RequisitosManager';
 import AlertasConfig from './components/Admin/AlertasConfig';
+import EmpresaManager from './components/Admin/EmpresaManager';
+import FacturacionManager from './components/Admin/FacturacionManager';
+import CuentaSuspendida from './pages/CuentaSuspendida';
 import type { AuditRecord } from './types';
 
-type TabId = 'indicadores' | 'auditoria' | 'programacion' | 'solicitudes' | 'notificaciones' | 'sitios' | 'sectores' | 'requisitos' | 'cuestionarios' | 'usuarios' | 'alertas' | 'equipo';
+type TabId = 'indicadores' | 'auditoria' | 'programacion' | 'solicitudes' | 'notificaciones' | 'sitios' | 'sectores' | 'requisitos' | 'cuestionarios' | 'usuarios' | 'alertas' | 'equipo' | 'empresas' | 'facturacion';
 
 const App: React.FC = () => {
   const { loading: authLoading, user, needTermsAcceptance, acceptTerms } = useAuth();
@@ -42,11 +45,33 @@ const App: React.FC = () => {
   
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingSync, setPendingSync] = useState(0);
+  const [suspendido, setSuspendido] = useState(false);
+  const [verificandoSuspension, setVerificandoSuspension] = useState(true);
+
+  useEffect(() => {
+    const verificarSuspension = async () => {
+      if (!user) {
+        setVerificandoSuspension(false);
+        return;
+      }
+      try {
+        if (user.role === 'gestor' && user.empresaId) {
+          const empresa = await getEmpresaByUserId(user.uid);
+          if (empresa?.estadoPago === 'suspendido') {
+            setSuspendido(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error verificando suspensión:', error);
+      }
+      setVerificandoSuspension(false);
+    };
+    verificarSuspension();
+  }, [user]);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      console.log('[Offline] Conexión restablecida - sincronizando...');
       syncOfflineAudits().then(result => {
         if (result.sincronizados > 0) {
           console.log(`[Offline] Sincronización automática: ${result.sincronizados} auditorías`);
@@ -57,7 +82,6 @@ const App: React.FC = () => {
     
     const handleOffline = () => {
       setIsOnline(false);
-      console.log('[Offline] Sin conexión - se guardará localmente');
     };
 
     window.addEventListener('online', handleOnline);
@@ -102,7 +126,6 @@ const App: React.FC = () => {
     }
   }, [editingAudit]);
 
-  // ✅ Pestaña "Mi Equipo" SOLO visible para gestores (NO para coordinadores)
   const mostrarMiEquipo = user?.role === 'gestor' || user?.role === 'admin';
 
   const allTabs: { id: TabId; lbl: string; icon: any; visible: boolean }[] = [
@@ -116,9 +139,10 @@ const App: React.FC = () => {
     { id: 'requisitos', lbl: 'Requisitos', icon: FileCheck, visible: canGestionarChecklist || user?.role === 'gestor' || user?.role === 'coordinador' },
     { id: 'cuestionarios', lbl: 'Cuestionarios', icon: FileSpreadsheet, visible: canGestionarChecklist || user?.role === 'gestor' || user?.role === 'coordinador' },
     { id: 'usuarios', lbl: 'Usuarios', icon: User, visible: canGestionarUsuarios },
-    // ✅ MI EQUIPO - SOLO GESTOR O ADMIN
     { id: 'equipo', lbl: 'Mi Equipo', icon: Users, visible: mostrarMiEquipo },
     { id: 'alertas', lbl: 'Alertas', icon: Bell, visible: isAdmin },
+    { id: 'empresas', lbl: 'Empresas', icon: Building2, visible: isAdmin },
+    { id: 'facturacion', lbl: 'Facturación', icon: CreditCard, visible: isAdmin },
   ];
 
   const visibleTabs = allTabs.filter(tab => tab.visible).map(({ id, lbl, icon }) => ({ id, lbl, icon }));
@@ -130,7 +154,7 @@ const App: React.FC = () => {
     }
   }, [visibleTabs, activeTab]);
 
-  if (authLoading) {
+  if (authLoading || verificandoSuspension) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -144,6 +168,10 @@ const App: React.FC = () => {
 
   if (user && needTermsAcceptance) {
     return <TermsAcceptance onAccept={acceptTerms} />;
+  }
+
+  if (suspendido) {
+    return <CuentaSuspendida />;
   }
 
   const renderContent = () => {
@@ -165,6 +193,8 @@ const App: React.FC = () => {
     if (activeTab === 'usuarios') return <UsersManager />;
     if (activeTab === 'equipo') return <TeamManager />;
     if (activeTab === 'alertas') return <AlertasConfig />;
+    if (activeTab === 'empresas') return <EmpresaManager />;
+    if (activeTab === 'facturacion') return <FacturacionManager />;
     return <div className="p-6">Pestaña no encontrada: {activeTab}</div>;
   };
 

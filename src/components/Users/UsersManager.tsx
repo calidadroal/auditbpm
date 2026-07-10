@@ -9,6 +9,7 @@ import {
   assignSitesToUser,
   assignQuestionnairesToUser,
   registerUser,
+  getAllEmpresas,
 } from '../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { collection, addDoc, query, where, orderBy, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -23,6 +24,7 @@ import {
   type PermisoNombre,
   type PermisoHistorial,
   type CambioPermiso,
+  type Empresa,
 } from '../../types';
 
 type PermissionsModalTab = 'permisos' | 'historial';
@@ -31,6 +33,7 @@ const UsersManager: React.FC = () => {
   const { sites, questionnaires, isAdmin } = useAppContext();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -63,7 +66,7 @@ const UsersManager: React.FC = () => {
   const [editNombre, setEditNombre] = useState('');
   const [editEmpresaId, setEditEmpresaId] = useState('');
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); loadEmpresas(); }, []);
 
   const loadUsers = async () => {
     try {
@@ -77,6 +80,21 @@ const UsersManager: React.FC = () => {
     }
   };
 
+  const loadEmpresas = async () => {
+    try {
+      const data = await getAllEmpresas();
+      setEmpresas(data);
+    } catch (error) {
+      console.error('Error cargando empresas:', error);
+    }
+  };
+
+  const getEmpresaNombre = (empresaId?: string) => {
+    if (!empresaId) return '—';
+    const emp = empresas.find(e => e.id === empresaId);
+    return emp ? emp.nombre : empresaId;
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail || !newPassword || !newDisplayName) { alert('Complete todos los campos'); return; }
@@ -85,9 +103,9 @@ const UsersManager: React.FC = () => {
       const firebaseUser = await registerUser(newEmail, newPassword);
       await createUserInFirestore(firebaseUser.uid, newEmail, newRole, newDisplayName);
       
-      if (newEmpresaId.trim()) {
+      if (newEmpresaId) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        await updateDoc(userRef, { empresaId: newEmpresaId.trim() });
+        await updateDoc(userRef, { empresaId: newEmpresaId });
       }
       
       alert('Usuario creado exitosamente');
@@ -130,7 +148,7 @@ const UsersManager: React.FC = () => {
       const userRef = doc(db, 'users', editUser.uid);
       await updateDoc(userRef, {
         displayName: editNombre.trim(),
-        empresaId: editEmpresaId.trim() || null,
+        empresaId: editEmpresaId || null,
         updatedAt: serverTimestamp()
       });
       alert('Usuario actualizado');
@@ -185,17 +203,12 @@ const UsersManager: React.FC = () => {
     cambios: CambioPermiso[]
   ) => {
     if (cambios.length === 0) return;
-
     const historialEntry: Omit<PermisoHistorial, 'id'> = {
-      userId,
-      userName,
-      userRole,
+      userId, userName, userRole,
       modificadoPorUid: currentUser?.uid || '',
       modificadoPorNombre: currentUser?.displayName || '',
-      cambios,
-      createdAt: serverTimestamp(),
+      cambios, createdAt: serverTimestamp(),
     };
-
     await addDoc(collection(db, 'permisosHistorial'), historialEntry);
   };
 
@@ -211,10 +224,7 @@ const UsersManager: React.FC = () => {
 
   const handleTogglePermission = (permiso: string) => {
     if (permissionsUser?.role === 'admin') return;
-    setEditedPermissions(prev => ({
-      ...prev,
-      [permiso]: !prev[permiso]
-    }));
+    setEditedPermissions(prev => ({ ...prev, [permiso]: !prev[permiso] }));
   };
 
   const handleResetPermissions = () => {
@@ -227,58 +237,37 @@ const UsersManager: React.FC = () => {
 
   const handleSavePermissions = async () => {
     if (!permissionsUser || !currentUser) return;
-
     if (permissionsUser.uid === currentUser.uid && permissionsUser.role === 'admin') {
       alert('No podés modificar tus propios permisos de admin');
       return;
     }
-
     setSavingPermissions(true);
     try {
       const basePermissions = ROLES_PERMISOS[permissionsUser.role];
       const overrides: Record<string, boolean> = {};
-
       const cambios: CambioPermiso[] = [];
       const permisosEfectivosAntes = getPermisosEfectivos(permissionsUser);
-
       (Object.keys(basePermissions) as PermisoNombre[]).forEach((permiso) => {
         if (editedPermissions[permiso] !== basePermissions[permiso]) {
           overrides[permiso] = editedPermissions[permiso];
         }
-
         const antes = permisosEfectivosAntes[permiso] ?? false;
         const despues = editedPermissions[permiso] ?? false;
         if (antes !== despues) {
-          cambios.push({
-            permiso,
-            label: PERMISOS_LABELS[permiso] || permiso,
-            antes,
-            despues,
-          });
+          cambios.push({ permiso, label: PERMISOS_LABELS[permiso] || permiso, antes, despues });
         }
       });
-
       const tieneOverrides = Object.keys(overrides).length > 0;
-
       const userRef = doc(db, 'users', permissionsUser.uid);
-      const updateData: Record<string, any> = {
+      await updateDoc(userRef, {
         permisosOverride: overrides,
         overrideActivo: tieneOverrides,
         permisosActualizadosPor: currentUser.uid,
         permisosActualizadosEn: new Date(),
         updatedAt: new Date(),
         fechaVencimientoOverrides: fechaVencimiento || null,
-      };
-
-      await updateDoc(userRef, updateData);
-
-      await saveHistorial(
-        permissionsUser.uid,
-        permissionsUser.displayName,
-        permissionsUser.role,
-        cambios
-      );
-
+      });
+      await saveHistorial(permissionsUser.uid, permissionsUser.displayName, permissionsUser.role, cambios);
       alert('Permisos actualizados correctamente');
       setShowPermissionsModal(false);
       setPermissionsUser(null);
@@ -305,12 +294,8 @@ const UsersManager: React.FC = () => {
 
   const formatDate = (timestamp: any): string => {
     if (!timestamp) return '—';
-    if (timestamp.seconds) {
-      return new Date(timestamp.seconds * 1000).toLocaleString('es-AR');
-    }
-    if (timestamp instanceof Date) {
-      return timestamp.toLocaleString('es-AR');
-    }
+    if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleString('es-AR');
+    if (timestamp instanceof Date) return timestamp.toLocaleString('es-AR');
     return String(timestamp);
   };
 
@@ -373,8 +358,13 @@ const UsersManager: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Empresa ID (opcional)</label>
-                <input type="text" value={newEmpresaId} onChange={(e) => setNewEmpresaId(e.target.value)} placeholder="Identificador de empresa" className="w-full px-3 py-2 border rounded-lg" />
+                <label className="block text-sm font-medium mb-1">Empresa</label>
+                <select value={newEmpresaId} onChange={(e) => setNewEmpresaId(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="">Sin empresa</option>
+                  {empresas.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.nombre} ({emp.cuit})</option>
+                  ))}
+                </select>
               </div>
             </div>
             <button type="submit" className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Crear Usuario</button>
@@ -450,8 +440,13 @@ const UsersManager: React.FC = () => {
                 <p className="text-xs text-gray-400 mt-1">El email no se puede cambiar</p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Empresa ID</label>
-                <input type="text" value={editEmpresaId} onChange={(e) => setEditEmpresaId(e.target.value)} placeholder="ID de empresa" className="w-full px-3 py-2 border rounded-lg" />
+                <label className="block text-sm font-medium mb-1">Empresa</label>
+                <select value={editEmpresaId} onChange={(e) => setEditEmpresaId(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="">Sin empresa</option>
+                  {empresas.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.nombre} ({emp.cuit})</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex gap-3 justify-end mt-6">
@@ -490,7 +485,7 @@ const UsersManager: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
                     <td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-xs ${getRoleBadgeColor(user.role)}`}>{user.role}</span></td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{user.empresaId || '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{getEmpresaNombre(user.empresaId)}</td>
                     <td className="px-6 py-4"><span className="text-sm">{user.assignedSites?.length || 0}</span></td>
                     <td className="px-6 py-4"><span className="text-sm">{(user as any).assignedQuestionnaires?.length || 0}</span></td>
                     <td className="px-6 py-4">

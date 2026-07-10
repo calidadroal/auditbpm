@@ -1,7 +1,9 @@
 // src/components/Admin/AlertasConfig.tsx
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getAlertasConfig, createAlertaConfig, updateAlertaConfig, deleteAlertaConfig } from '../../firebase';
+import { getAlertasConfig, createAlertaConfig, deleteAlertaConfig } from '../../firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase';
 import type { AlertaConfig } from '../../types';
 import { Bell, Plus, Trash2, Clock, FileCheck, AlertTriangle, BarChart3 } from 'lucide-react';
 
@@ -85,10 +87,11 @@ const AlertasConfig: React.FC = () => {
         activo: true,
         emailsDestino: emails.split(',').map(e => e.trim()).filter(Boolean),
         mensajePersonalizado: mensaje.trim() || undefined,
+        updatedAt: serverTimestamp(),
       };
 
       if (editingId) {
-        await updateAlertaConfig(editingId, data);
+        await updateDoc(doc(db, 'alertaConfigs', editingId), data);
       } else {
         await createAlertaConfig(data as any);
       }

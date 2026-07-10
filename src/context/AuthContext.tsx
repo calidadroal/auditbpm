@@ -38,7 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const [needTermsAcceptance, setNeedTermsAcceptance] = useState(false);
 
-  // ✅ Función acceptTerms CORREGIDA - CREA el documento si no existe
   const acceptTerms = async () => {
     if (!firebaseUser) throw new Error('No hay usuario autenticado');
     
@@ -46,7 +45,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userSnap = await getDoc(userRef);
     
     if (!userSnap.exists()) {
-      // ✅ Si el documento NO existe, lo CREAMOS con todos los campos
       await setDoc(userRef, {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
@@ -58,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isTrial: true,
         trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         plan: 'trial',
-        // ✅ TÉRMINOS DE USO
         termsAccepted: true,
         termsVersion: TERMS_VERSION,
         termsAcceptedAt: new Date().toISOString(),
@@ -67,7 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       console.log('✅ Documento de usuario creado desde acceptTerms');
     } else {
-      // ✅ Si existe, lo ACTUALIZAMOS
       await updateDoc(userRef, {
         termsAccepted: true,
         termsVersion: TERMS_VERSION,
@@ -77,7 +73,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('✅ Términos actualizados para usuario existente');
     }
     
-    // Actualizar el estado local
     if (user) {
       setUser({
         ...user,
@@ -86,7 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         termsAcceptedAt: new Date().toISOString()
       });
     } else {
-      // Si no tenemos el usuario en estado, lo recargamos
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const data = userSnap.data();
@@ -173,9 +167,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (appUser.trialEndsAt) console.log('Trial: quedan', trialDaysLeft, 'dias');
             console.log('Términos aceptados:', appUser.termsAccepted, 'Versión:', appUser.termsVersion);
             
+            // ============================================================
+            // ETAPA 4: VERIFICAR ESTADO DE PAGO (SOLO GESTORES)
+            // ============================================================
+            if (appUser.role === 'gestor' && appUser.empresaId) {
+              try {
+                const empresaSnap = await getDoc(doc(db, 'empresas', appUser.empresaId));
+                if (empresaSnap.exists()) {
+                  const empresaData = empresaSnap.data();
+                  if (empresaData.estadoPago === 'suspendido') {
+                    console.warn('🔴 Empresa suspendida por falta de pago:', appUser.empresaId);
+                    setUser(null);
+                    setNeedTermsAcceptance(false);
+                    setLoading(false);
+                    window.location.href = '/cuenta-suspendida';
+                    return;
+                  }
+                  console.log('✅ Estado de pago:', empresaData.estadoPago);
+                }
+              } catch (err) {
+                console.error('Error verificando estado de pago:', err);
+                // No bloqueamos el acceso si hay error de conexión
+              }
+            }
+            
             setUser(appUser);
             
-            // ✅ Sincronizar offline al cargar usuario (si está activo y hay conexión)
             if (appUser.active && navigator.onLine) {
               syncOfflineAudits().then(result => {
                 if (result.sincronizados > 0) {
@@ -193,7 +210,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             
           } else {
-            // ✅ Si el usuario no existe en Firestore, lo creamos con valores por defecto
             console.log('Usuario en Auth pero no en Firestore. Creando documento...');
             await setDoc(userRef, {
               uid: fbUser.uid,
@@ -214,7 +230,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             console.log('✅ Usuario creado automáticamente en Firestore');
             
-            // Recargar el usuario recién creado
             const newUserSnap = await getDoc(userRef);
             if (newUserSnap.exists()) {
               const data = newUserSnap.data();
