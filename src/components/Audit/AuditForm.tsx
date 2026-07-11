@@ -9,7 +9,7 @@ import { calcularScore, clasificarRiesgo, getClasificacionLabel, getClasificacio
 import { generarPDF } from '../../utils/pdfGenerator';
 import QRScanner from '../QR/QRScanner';
 import type { AuditRecord, AuditResponse, RespuestaValor, RespuestaChecklist, CambioAuditoria, AuditHistorial, Geolocalizacion, PreguntaGestion, OfflineAudit } from '../../types';
-import { QrCode, Lock, Building2, ClipboardCheck, ShieldAlert, FileText, Edit3, MapPin, ShoppingBag, WifiOff, Upload } from 'lucide-react';
+import { QrCode, Lock, Building2, ClipboardCheck, ShieldAlert, FileText, Edit3, MapPin, ShoppingBag, WifiOff, Upload, Save } from 'lucide-react';
 
 const OPCIONES: { value: RespuestaValor; label: string; color: string }[] = [
   { value: 'C', label: 'C - Cumple', color: 'bg-green-100 border-green-400 text-green-800' },
@@ -89,6 +89,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
   const esChecklist = currentConfig?.tipo === 'checklist';
   const esGestionComercio = currentConfig?.tipo === 'gestion_comercio';
   const preguntasGestion: PreguntaGestion[] = (currentConfig as any)?.preguntasGestion || [];
+  const permitirGuardadoParcial = currentConfig?.allowPartialSave === true && !isEditing;
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -232,35 +233,39 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     await addDoc(collection(db, 'auditHistorial'), entry);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, esGuardadoParcial: boolean = false) => {
     e.preventDefault(); setErrors([]);
     if (!currentConfig || !user) return;
-    if (!isEditing && (currentConfig.requireQR || currentConfig.sectorizado) && !qrValidated && !currentConfig.sectorizado && !esGestionComercio) { setErrors(['Debe escanear el QR antes de finalizar']); return; }
-    if (!isEditing && currentConfig.sectorizado && validatedGroups.length < grupos.length) { setErrors([`Faltan validar ${grupos.length - validatedGroups.length} sector(es) con QR`]); return; }
 
-    if (esGestionComercio) {
-      const errs: string[] = [];
-      for (const q of preguntasGestion) {
-        if (q.requerido) {
-          if (q.tipo === 'foto' && (!fotos[q.id] || fotos[q.id].length === 0)) {
-            errs.push(`Falta foto en: ${q.texto}`);
-          } else if (q.tipo === 'si_no' && respuestasSiNo[q.id] === undefined) {
-            errs.push(`Falta responder: ${q.texto}`);
-          } else if (q.tipo !== 'foto' && q.tipo !== 'si_no' && !respuestasGestion[q.id]?.trim()) {
-            errs.push(`Falta respuesta en: ${q.texto}`);
+    // En guardado parcial no se validan todos los campos
+    if (!esGuardadoParcial) {
+      if (!isEditing && (currentConfig.requireQR || currentConfig.sectorizado) && !qrValidated && !currentConfig.sectorizado && !esGestionComercio) { setErrors(['Debe escanear el QR antes de finalizar']); return; }
+      if (!isEditing && currentConfig.sectorizado && validatedGroups.length < grupos.length) { setErrors([`Faltan validar ${grupos.length - validatedGroups.length} sector(es) con QR`]); return; }
+
+      if (esGestionComercio) {
+        const errs: string[] = [];
+        for (const q of preguntasGestion) {
+          if (q.requerido) {
+            if (q.tipo === 'foto' && (!fotos[q.id] || fotos[q.id].length === 0)) {
+              errs.push(`Falta foto en: ${q.texto}`);
+            } else if (q.tipo === 'si_no' && respuestasSiNo[q.id] === undefined) {
+              errs.push(`Falta responder: ${q.texto}`);
+            } else if (q.tipo !== 'foto' && q.tipo !== 'si_no' && !respuestasGestion[q.id]?.trim()) {
+              errs.push(`Falta respuesta en: ${q.texto}`);
+            }
           }
         }
+        if (errs.length > 0) { setErrors(errs); return; }
+      } else {
+        const questions = currentConfig.questions || [];
+        const errs: string[] = [];
+        for (const q of questions) {
+          if (!respuestas[q.id]) errs.push(`Falta respuesta en: ${q.text}`);
+          if (q.requireComment && !comentarios[q.id]?.trim()) errs.push(`Falta comentario en: ${q.text}`);
+          if (q.requirePhoto && (!fotos[q.id] || fotos[q.id].length === 0)) errs.push(`Falta foto en: ${q.text}`);
+        }
+        if (errs.length > 0) { setErrors(errs); return; }
       }
-      if (errs.length > 0) { setErrors(errs); return; }
-    } else {
-      const questions = currentConfig.questions || [];
-      const errs: string[] = [];
-      for (const q of questions) {
-        if (!respuestas[q.id]) errs.push(`Falta respuesta en: ${q.text}`);
-        if (q.requireComment && !comentarios[q.id]?.trim()) errs.push(`Falta comentario en: ${q.text}`);
-        if (q.requirePhoto && (!fotos[q.id] || fotos[q.id].length === 0)) errs.push(`Falta foto en: ${q.text}`);
-      }
-      if (errs.length > 0) { setErrors(errs); return; }
     }
 
     setSaving(true);
@@ -389,11 +394,12 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         criticosMunicipalesNC: esChecklist ? responses.filter(r => r.nivelRiesgoMunicipal === 'critico' && r.valor === 'NO_CUMPLE').length : null,
         mediosMunicipalesNC: esChecklist ? responses.filter(r => r.nivelRiesgoMunicipal === 'medio' && r.valor === 'NO_CUMPLE').length : null,
         recurrenciaDetectada: false, recurrenciaDetalle: '', desviosSistematicos: [],
-        startedAt: new Date(startTime), completedAt: new Date(), durationMinutes: Math.floor(currentTime / 60), status: 'completed'
+        startedAt: new Date(startTime), completedAt: new Date(), durationMinutes: Math.floor(currentTime / 60),
+        status: esGuardadoParcial ? 'in_progress' : 'completed'
       };
       if (selectedSector) { auditData.sectorId = selectedSector.id; auditData.sectorName = selectedSector.name; auditData.qrToken = selectedSector.qrToken; auditData.qrValidatedAt = new Date(); }
 
-      if (!esChecklist && !esGestionComercio) {
+      if (!esChecklist && !esGestionComercio && !esGuardadoParcial) {
         const recurrencia = await analizarRecurrencia(auditData as AuditRecord);
         auditData.recurrenciaDetectada = recurrencia.detectada; auditData.recurrenciaDetalle = recurrencia.detalle;
         auditData.desviosSistematicos = recurrencia.desviosSistematicos; if (recurrencia.detectada) auditData.clasificacion = 'riesgo_alto';
@@ -418,6 +424,9 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         await saveHistorialAudit(auditToEdit.id, auditToEdit.siteName, cambios);
         setResultado({ id: auditToEdit.id, ...auditData, editado: true });
         if (onEditComplete) onEditComplete();
+      } else if (esGuardadoParcial) {
+        const auditId = await createAudit(auditData);
+        setResultado({ id: auditId, ...auditData, parcial: true });
       } else {
         const auditId = await createAudit(auditData);
         setResultado({ id: auditId, ...auditData, recurrencia: auditData.recurrenciaDetectada ? { detectada: true, detalle: auditData.recurrenciaDetalle, desviosSistematicos: auditData.desviosSistematicos } : undefined });
@@ -434,7 +443,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       <div className="p-6 max-w-2xl mx-auto">
         <div className="bg-white border rounded-lg p-6 text-center">
           <h2 className="text-2xl font-bold mb-4">
-            {resultado.offline ? '📱 Auditoría Guardada (Offline)' : resultado.editado ? '✏️ Auditoría Editada' : '✅ Auditoría Guardada'}
+            {resultado.offline ? '📱 Auditoría Guardada (Offline)' : resultado.parcial ? '💾 Auditoría Guardada (Parcial)' : resultado.editado ? '✏️ Auditoría Editada' : '✅ Auditoría Guardada'}
           </h2>
           
           {resultado.offline ? (
@@ -443,6 +452,12 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
               <p className="text-yellow-800 font-medium">Guardada en el dispositivo</p>
               <p className="text-sm text-yellow-600 mt-1">Se sincronizará automáticamente cuando vuelva la conexión</p>
               <p className="text-xs text-yellow-500 mt-2">Pendientes: {getPendingSyncCount()} auditoría(s)</p>
+            </div>
+          ) : resultado.parcial ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <Save className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+              <p className="text-blue-800 font-medium">Guardado parcial completado</p>
+              <p className="text-sm text-blue-600 mt-1">Podés continuar esta auditoría más tarde desde el Dashboard.</p>
             </div>
           ) : (
             <>
@@ -462,7 +477,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
           {resultado.establecimiento && <p className="text-sm text-gray-600 mb-2">🏫 Establecimiento: <strong>{resultado.establecimiento}</strong></p>}
           
           <div className="flex justify-center gap-3 mt-4">
-            {!resultado.offline && (
+            {!resultado.offline && !resultado.parcial && (
               <button onClick={() => generarPDF(resultado as AuditRecord)} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">📄 Descargar PDF</button>
             )}
             <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setRespuestasGestion({}); setRespuestasSiNo({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Nuevo Control</button>
@@ -491,6 +506,13 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         </div>
       )}
 
+      {permitirGuardadoParcial && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 flex items-center gap-2">
+          <Save className="w-4 h-4" />
+          Guardado parcial habilitado - Podés guardar y continuar después
+        </div>
+      )}
+
       <div className="mb-4 p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-sm">
         <span>⏱ Tiempo: <strong>{formatTime(currentTime)}</strong></span>
         {currentConfig?.minimumTimeMinutes > 0 && !esGestionComercio && <span className="text-yellow-600">Mínimo: {currentConfig.minimumTimeMinutes} min</span>}
@@ -506,7 +528,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       {errors.length > 0 && (<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"><ul className="list-disc list-inside text-sm text-red-600">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></div>)}
       {qrError && (<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{qrError}</div>)}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><label className="block text-sm font-medium mb-1">Sitio *</label><select value={selectedSiteId} onChange={(e) => setSelectedSiteId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar sitio...</option>{sites.filter(s => s.active !== false).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
           <div><label className="block text-sm font-medium mb-1">Cuestionario *</label><select value={selectedQuestionnaireId} onChange={(e) => setSelectedQuestionnaireId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar cuestionario...</option>{questionnaires.filter(q => q.active !== false).map(q => <option key={q.id} value={q.id}>{q.name} ({q.norma}) {q.tipo === 'gestion_comercio' ? '🛍️ Gestión' : q.tipo === 'checklist' ? '🏛️ Municipal' : q.sectorizado ? '🏢 Sectorizado' : ''}</option>)}</select></div>
@@ -704,7 +726,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                       {q.instructions && <p className="text-xs text-gray-400 italic mb-2">📋 {q.instructions}</p>}
                       <div className="flex flex-wrap gap-2 mb-2">{OPCIONES.map(op => (<button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }} className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{op.label}</button>))}</div>
                       <div className="space-y-2">
-                        {/* ✅ CAMBIO: Aumentado el padding del input de comentario */}
                         <input
                           type="text"
                           value={comentarios[q.id] || ''}
@@ -753,7 +774,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                     }
                   </div>
                   <div className="space-y-2">
-                    {/* ✅ CAMBIO: Aumentado el padding del input de comentario */}
                     <input
                       type="text"
                       value={comentarios[q.id] || ''}
@@ -795,6 +815,11 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
 
         <div className="flex space-x-3 pt-4 border-t">
           {isEditing && <button type="button" onClick={onCancelEdit} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">Cancelar</button>}
+          {permitirGuardadoParcial && (
+            <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={saving} className="px-6 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium flex items-center gap-2">
+              <Save className="w-4 h-4" /> Guardar y continuar después
+            </button>
+          )}
           <button type="submit" disabled={saving} className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 font-medium">
             {saving ? 'Guardando...' : isEditing ? '💾 Guardar Cambios' : isOnline ? 'Finalizar' : '📱 Guardar en dispositivo'}
           </button>
