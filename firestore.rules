@@ -1,0 +1,292 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================================
+    // USUARIOS
+    // ============================================================
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      
+      // ✅ CREAR usuario: solo admin puede crear usuarios manualmente
+      allow create: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // ✅ ACTUALIZAR usuario: admin puede todo, gestor puede actualizar usuarios de su equipo
+      allow update: if request.auth != null && (
+        // Admin puede todo
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        // Gestor puede actualizar usuarios que compartan sitios con él
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' &&
+          isUserInSameSites(request.auth.uid, userId)
+        ) ||
+        // El propio usuario puede actualizar sus datos
+        request.auth.uid == userId
+      );
+      
+      // ✅ ELIMINAR usuario: solo admin
+      allow delete: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ============================================================
+    // SITIOS
+    // ============================================================
+    match /sites/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor y admin pueden crear/editar sitios
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'coordinador'
+      );
+    }
+    
+    // ============================================================
+    // AUDITORÍAS
+    // ============================================================
+    match /audits/{document} {
+      allow read: if request.auth != null;
+      
+      allow create: if request.auth != null
+                    && request.resource.data.auditorId == request.auth.uid;
+      
+      allow update: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        request.auth.uid == resource.data.auditorId
+      );
+      
+      allow delete: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ============================================================
+    // CUESTIONARIOS
+    // ============================================================
+    match /questionnaires/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor y coordinador pueden crear/editar cuestionarios
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'coordinador'
+      );
+    }
+    
+    // ============================================================
+    // SECTORES QR
+    // ============================================================
+    match /sectors/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor y coordinador pueden crear/editar sectores
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'coordinador'
+      );
+    }
+    
+    // ============================================================
+    // NOTIFICACIONES
+    // ============================================================
+    match /notifications/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ============================================================
+    // USER SITE ASSIGNMENTS
+    // ============================================================
+    match /userSiteAssignments/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor puede asignar sitios a usuarios (de su equipo)
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' &&
+          isUserInSameSites(request.auth.uid, request.resource.data.userId)
+        )
+      );
+    }
+    
+    // ============================================================
+    // AUDIT SCHEDULES
+    // ============================================================
+    match /auditSchedules/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor y coordinador pueden gestionar programaciones
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'coordinador'
+      );
+    }
+    
+    // ============================================================
+    // SOLICITUDES
+    // ============================================================
+    match /solicitudes/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (
+        resource.data.solicitanteId == request.auth.uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor'
+      );
+      allow delete: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ============================================================
+    // REQUISITOS
+    // ============================================================
+    match /requisitos/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor y coordinador pueden gestionar requisitos
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'coordinador'
+      );
+    }
+    
+    // ============================================================
+    // PERMISOS HISTORIAL
+    // ============================================================
+    match /permisosHistorial/{document} {
+      allow read: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow update, delete: if false;
+    }
+    
+    // ============================================================
+    // AUDIT HISTORIAL
+    // ============================================================
+    match /auditHistorial/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null 
+                    && request.resource.data.modificadoPorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+    
+    // ============================================================
+    // ALERTAS CONFIG
+    // ============================================================
+    match /alertasConfig/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor puede configurar alertas
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor'
+      );
+    }
+    
+    // ============================================================
+    // DOCUMENTOS DE USUARIOS
+    // ============================================================
+    match /documentosUsuarios/{document} {
+      allow read: if request.auth != null;
+      
+      // ✅ Gestor puede gestionar documentos de su equipo
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor' &&
+          isUserInSameSites(request.auth.uid, request.resource.data.userId)
+        )
+      );
+    }
+
+    // ============================================================
+    // ETAPA 4: EMPRESAS (solo admin)
+    // ============================================================
+    match /empresas/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /empresas/{empresaId}/historialEstados/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ============================================================
+    // ETAPA 4: FACTURAS (solo admin)
+    // ============================================================
+    match /facturas/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ============================================================
+    // ETAPA 4: FACTURACION CONFIG (solo admin)
+    // ============================================================
+    match /facturacionConfig/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ============================================================
+    // NOTIFICACIONES (colección en español)
+    // ============================================================
+    match /notificaciones/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ============================================================
+    // OFFLINE AUDITS
+    // ============================================================
+    match /offlineAudits/{document} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ============================================================
+    // ALERTA CONFIGS (plural, como lo usa el código)
+    // ============================================================
+    match /alertaConfigs/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'gestor'
+      );
+    }
+    
+    // ============================================================
+    // FUNCIONES AUXILIARES
+    // ============================================================
+    function isUserInSameSites(gestorUid, userId) {
+      let gestorSites = get(/databases/$(database)/documents/users/$(gestorUid)).data.assignedSites;
+      let userSites = get(/databases/$(database)/documents/users/$(userId)).data.assignedSites;
+      return gestorSites != null && userSites != null && 
+             gestorSites.toSet().hasAny(userSites.toSet());
+    }
+    
+    // ============================================================
+    // FALLBACK
+    // ============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

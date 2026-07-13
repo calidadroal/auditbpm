@@ -28,7 +28,6 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
   const isOwner = user?.uid === audit.auditorId;
   const canEdit = isAdmin || isOwner;
 
-  // Cargar historial
   useEffect(() => {
     loadHistorial();
   }, [audit.id]);
@@ -98,7 +97,6 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-10 overflow-y-auto">
       <div className="bg-white rounded-xl max-w-3xl w-full mx-4 my-4 max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         
-        {/* Header */}
         <div className="bg-white border-b px-6 py-4 rounded-t-xl z-10 flex justify-between items-start">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Detalle de Auditoría</h2>
@@ -120,13 +118,12 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b">
           <button
             onClick={() => setActiveTab('detalle')}
             className={`px-6 py-3 text-sm font-medium transition-colors ${
               activeTab === 'detalle'
-                ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
+                ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -136,7 +133,7 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
             onClick={() => setActiveTab('historial')}
             className={`px-6 py-3 text-sm font-medium transition-colors ${
               activeTab === 'historial'
-                ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
+                ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -144,11 +141,9 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
           </button>
         </div>
 
-        {/* Cuerpo */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {activeTab === 'detalle' ? (
             <>
-              {/* Datos generales */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <div className="flex items-center gap-2 text-gray-600"><MapPin className="w-4 h-4" /><span>{siteName}</span></div>
                 <div className="flex items-center gap-2 text-gray-600"><User className="w-4 h-4" /><span>{audit.auditorName || audit.auditorEmail}</span></div>
@@ -157,33 +152,29 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
               </div>
 
               {audit.sectorName && <div className="text-sm text-gray-500">📍 Sector: <strong>{audit.sectorName}</strong></div>}
-{audit.establecimiento && (
-  <div className="text-sm text-gray-500">
-    🏫 Establecimiento: <strong>{audit.establecimiento}</strong>
-  </div>
-)}
+              {audit.establecimiento && (
+                <div className="text-sm text-gray-500">🏫 Establecimiento: <strong>{audit.establecimiento}</strong></div>
+              )}
 
-{audit.geolocalizacion && (
-  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-    <p className="text-sm text-blue-700 font-medium">📍 Ubicación</p>
-    <p className="text-xs text-blue-500 mt-1">
-      Lat: {audit.geolocalizacion.lat.toFixed(6)} | Lng: {audit.geolocalizacion.lng.toFixed(6)}
-      {audit.geolocalizacion.precision && <span className="ml-2">Precisión: ±{Math.round(audit.geolocalizacion.precision)}m</span>}
-    </p>
-    <a href={`https://www.google.com/maps?q=${audit.geolocalizacion.lat},${audit.geolocalizacion.lng}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline mt-1 inline-block">
-      🗺️ Ver en Google Maps
-    </a>
-  </div>
-)}
+              {audit.geolocalizacion && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-700 font-medium">📍 Ubicación</p>
+                  <p className="text-xs text-green-500 mt-1">
+                    Lat: {audit.geolocalizacion.lat.toFixed(6)} | Lng: {audit.geolocalizacion.lng.toFixed(6)}
+                    {audit.geolocalizacion.precision && <span className="ml-2">Precisión: ±{Math.round(audit.geolocalizacion.precision)}m</span>}
+                  </p>
+                  <a href={`https://www.google.com/maps?q=${audit.geolocalizacion.lat},${audit.geolocalizacion.lng}`} target="_blank" rel="noopener noreferrer" className="text-xs text-green-600 underline mt-1 inline-block">
+                    🗺️ Ver en Google Maps
+                  </a>
+                </div>
+              )}
 
-              {/* Score */}
               <div className="bg-gray-50 rounded-xl p-6 text-center border">
                 <div className={`text-5xl font-black mb-2 ${getScoreColor(audit.score)}`}>{audit.score}%</div>
                 <div className={`inline-block px-4 py-2 rounded-lg text-lg font-bold border mb-2 ${getClasificacionBg(audit.clasificacion)}`}>{getClasificacionColor(audit.clasificacion)}</div>
                 <p className="text-sm text-gray-500">{getClasificacionLabel(audit.clasificacion)}</p>
               </div>
 
-              {/* Resumen */}
               <div className="grid grid-cols-5 gap-2 text-center text-sm">
                 <div className="bg-green-50 p-2 rounded-lg border border-green-200"><div className="font-bold text-green-700 text-lg">{audit.totalCumplen}</div><div className="text-xs text-green-600">Cumplen</div></div>
                 <div className="bg-yellow-50 p-2 rounded-lg border border-yellow-200"><div className="font-bold text-yellow-700 text-lg">{audit.totalCumplenParcial}</div><div className="text-xs text-yellow-600">Parcial</div></div>
@@ -192,12 +183,10 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
                 <div className="bg-red-100 p-2 rounded-lg border border-red-300"><div className="font-bold text-red-800 text-lg">{audit.criticosNC}</div><div className="text-xs text-red-700">Críticos NC</div></div>
               </div>
 
-              {/* Conclusión */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">{generarConclusion(audit.score, audit.criticosNC, audit.clasificacion)}</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p className="text-sm text-green-800">{generarConclusion(audit.score, audit.criticosNC, audit.clasificacion)}</p>
               </div>
 
-              {/* Recurrencia */}
               {audit.recurrenciaDetectada && audit.desviosSistematicos?.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <p className="font-bold text-red-800 text-sm mb-2">⚠️ Desvíos Sistemáticos Detectados</p>
@@ -205,7 +194,6 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
                 </div>
               )}
 
-              {/* Preguntas */}
               <div>
                 <h3 className="font-bold text-lg mb-3">Preguntas ({audit.responses?.length || 0})</h3>
                 <div className="space-y-3">
@@ -239,11 +227,10 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
               </div>
             </>
           ) : (
-            /* ========== TAB HISTORIAL ========== */
             <div>
               {loadingHistorial ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
                   <p className="text-sm text-gray-500 mt-3">Cargando historial...</p>
                 </div>
               ) : historial.length === 0 ? (
@@ -258,11 +245,11 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <p className="text-sm font-medium text-gray-800">
-                            Modificado por: <span className="text-purple-700">{entry.modificadoPorNombre}</span>
+                            Modificado por: <span className="text-green-700">{entry.modificadoPorNombre}</span>
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">{formatDate(entry.createdAt)}</p>
                         </div>
-                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                           {entry.cambios.length} cambio{entry.cambios.length !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -291,10 +278,9 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, siteName, onClose, onD
           )}
         </div>
 
-        {/* Footer */}
         <div className="bg-white border-t px-6 py-4 rounded-b-xl flex justify-end gap-3">
           {onDownloadPDF && (
-            <button onClick={onDownloadPDF} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">
+            <button onClick={onDownloadPDF} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
               📄 Descargar PDF
             </button>
           )}

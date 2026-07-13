@@ -2,10 +2,10 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="AuditBPM - Sistema de Auditorías de Calidad Gastronómica" />
-    <meta name="theme-color" content="#1e40af" />
+    <meta name="description" content="TodoEnRegla - Sistema de Auditorías y Gestión de Comercios" />
+    <meta name="theme-color" content="#16a34a" />
     
     <!-- SEGURIDAD: No permitir que buscadores indexen la app -->
     <meta name="robots" content="noindex, nofollow" />
@@ -21,7 +21,14 @@
       frame-src 'self' https://*.firebaseapp.com;
     " />
     
-    <title>AuditBPM - Auditorías de Calidad</title>
+    <!-- Open Graph -->
+    <meta property="og:title" content="TodoEnRegla - Auditorías y Gestión" />
+    <meta property="og:description" content="Sistema de auditorías gastronómicas y gestión de comercios" />
+    <meta property="og:image" content="/logo.svg" />
+    <meta property="og:url" content="https://todoenregla.com.ar" />
+    <meta name="twitter:card" content="summary" />
+    
+    <title>TodoEnRegla - Auditorías y Gestión</title>
   </head>
   <body>
     <div id="root"></div>
@@ -34,65 +41,48 @@
       (function() {
         'use strict';
         
-        // ==========================================
-        // 1. BLOQUEO DE CLICK DERECHO
-        // ==========================================
         document.addEventListener('contextmenu', function(e) {
           e.preventDefault();
           return false;
         });
         
-        // ==========================================
-        // 2. BLOQUEO DE TECLAS DE DESARROLLADOR
-        // ==========================================
         document.addEventListener('keydown', function(e) {
-          // F12
           if (e.key === 'F12') {
             e.preventDefault();
             return false;
           }
           
-          // Ctrl+Shift+I (DevTools)
           if (e.ctrlKey && e.shiftKey && e.key === 'I') {
             e.preventDefault();
             return false;
           }
           
-          // Ctrl+Shift+J (Console)
           if (e.ctrlKey && e.shiftKey && e.key === 'J') {
             e.preventDefault();
             return false;
           }
           
-          // Ctrl+Shift+C (Inspect Element)
           if (e.ctrlKey && e.shiftKey && e.key === 'C') {
             e.preventDefault();
             return false;
           }
           
-          // Ctrl+U (View Source)
           if (e.ctrlKey && e.key === 'U') {
             e.preventDefault();
             return false;
           }
           
-          // Ctrl+S (Save Page)
           if (e.ctrlKey && e.key === 'S') {
             e.preventDefault();
             return false;
           }
           
-          // Ctrl+P (Print)
           if (e.ctrlKey && e.key === 'P') {
             e.preventDefault();
             return false;
           }
         });
         
-        // ==========================================
-        // 3. BLOQUEO DE SELECCIÓN DE TEXTO
-        // (Permite selección en inputs y textareas)
-        // ==========================================
         document.addEventListener('selectstart', function(e) {
           const tag = e.target.tagName;
           if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
@@ -102,9 +92,6 @@
           return false;
         });
         
-        // ==========================================
-        // 4. BLOQUEO DE ARRASTRE DE IMÁGENES
-        // ==========================================
         document.addEventListener('dragstart', function(e) {
           if (e.target.tagName === 'IMG') {
             e.preventDefault();
@@ -112,9 +99,6 @@
           }
         });
         
-        // ==========================================
-        // 5. DETECCIÓN DE DEVTOOLS ABIERTO
-        // ==========================================
         let devtoolsOpen = false;
         const threshold = 160;
         
@@ -137,18 +121,12 @@
         
         setInterval(checkDevTools, 1000);
         
-        // ==========================================
-        // 6. LIMPIEZA DE CONSOLA (solo producción)
-        // ==========================================
         if (window.location.hostname !== 'localhost') {
           setInterval(function() {
             console.clear();
           }, 3000);
         }
         
-        // ==========================================
-        // 7. PROTECCIÓN ANTI-DEBUGGER (solo producción)
-        // ==========================================
         if (window.location.hostname !== 'localhost') {
           setInterval(function() {
             const start = performance.now();
@@ -160,9 +138,6 @@
           }, 1000);
         }
         
-        // ==========================================
-        // 8. FILTRO DE DATOS SENSIBLES EN CONSOLA
-        // ==========================================
         if (window.location.hostname !== 'localhost') {
           const originalLog = console.log;
           console.log = function(...args) {
@@ -176,7 +151,7 @@
           };
         }
         
-        console.log('%c🔒 AuditBPM - Sistema Seguro', 'color: green; font-weight: bold;');
+        console.log('%c🔒 TodoEnRegla - Sistema Seguro', 'color: green; font-weight: bold;');
       })();
     </script>
   </body>

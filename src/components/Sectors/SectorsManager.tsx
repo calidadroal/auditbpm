@@ -117,7 +117,7 @@ const SectorsManager: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Gestión de Sectores QR</h2>
         {canEdit && (
-          <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+          <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
             {showForm ? 'Cancelar' : '+ Nuevo Sector'}
           </button>
         )}
@@ -174,7 +174,7 @@ const SectorsManager: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <code className="bg-gray-100 px-2 py-1 rounded text-xs">{sector.qrToken.substring(0, 12)}...</code>
-                          <button type="button" onClick={() => handleCopyToken(sector.qrToken)} className="text-blue-500 hover:text-blue-700 text-xs underline flex items-center gap-1" title="Copiar token completo"><Copy className="w-3 h-3" /> Copiar</button>
+                          <button type="button" onClick={() => handleCopyToken(sector.qrToken)} className="text-green-500 hover:text-green-700 text-xs underline flex items-center gap-1" title="Copiar token completo"><Copy className="w-3 h-3" /> Copiar</button>
                         </div>
                       </td>
                       <td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-xs ${sector.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{sector.active ? 'Activo' : 'Inactivo'}</span></td>
@@ -183,7 +183,7 @@ const SectorsManager: React.FC = () => {
                           <button onClick={() => handleDownloadQR(sector)} disabled={generatingQR === sector.id} className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 disabled:bg-gray-300"><Download className="w-3 h-3" />{generatingQR === sector.id ? '...' : 'Descargar QR'}</button>
                           {canEdit && (
                             <>
-                              <button onClick={() => handleEdit(sector)} className="text-blue-600 hover:text-blue-800 text-xs">Editar</button>
+                              <button onClick={() => handleEdit(sector)} className="text-green-600 hover:text-green-800 text-xs">Editar</button>
                               <button onClick={() => handleRegenerateQR(sector.id)} className="flex items-center gap-1 text-purple-600 hover:text-purple-800 text-xs"><RefreshCw className="w-3 h-3" />Nuevo QR</button>
                               <button onClick={() => handleDelete(sector.id)} className="text-red-600 hover:text-red-800 text-xs">Desactivar</button>
                             </>

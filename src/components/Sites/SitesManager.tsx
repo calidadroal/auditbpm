@@ -16,12 +16,10 @@ const SitesManager: React.FC = () => {
   const [selectedSite, setSelectedSite] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Requisitos disponibles
   const [requisitosDisponibles, setRequisitosDisponibles] = useState<Requisito[]>([]);
   const [requisitosSeleccionados, setRequisitosSeleccionados] = useState<{ [id: string]: RequisitoAplicado }>({});
   const [mostrarRequisitos, setMostrarRequisitos] = useState(false);
 
-  // Edición
   const [editingSite, setEditingSite] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
@@ -50,7 +48,7 @@ const SitesManager: React.FC = () => {
     
     if (diffDias < 0) return { estado: 'vencida', color: 'text-red-600 bg-red-50', icon: AlertTriangle, label: 'Vencida' };
     if (diffDias <= 30) return { estado: 'por_vencer', color: 'text-yellow-600 bg-yellow-50', icon: AlertTriangle, label: `Vence en ${diffDias} días` };
-    if (diffDias <= 90) return { estado: 'proxima', color: 'text-blue-600 bg-blue-50', icon: Calendar, label: `Vence en ${diffDias} días` };
+    if (diffDias <= 90) return { estado: 'proxima', color: 'text-green-600 bg-green-50', icon: Calendar, label: `Vence en ${diffDias} días` };
     return { estado: 'vigente', color: 'text-green-600 bg-green-50', icon: CheckCircle2, label: 'Vigente' };
   };
 
@@ -200,7 +198,7 @@ const SitesManager: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white p-4 rounded-xl border shadow-sm">
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 border-b pb-2 mb-3">
-            <Home className="w-4 h-4 text-blue-600" />
+            <Home className="w-4 h-4 text-green-600" />
             Establecimientos
           </h3>
           {sites.length === 0 ? (
@@ -219,7 +217,7 @@ const SitesManager: React.FC = () => {
                     editingSite === s.id 
                       ? 'border-green-500 bg-green-50/30' 
                       : selectedSite === s.id 
-                        ? 'border-blue-500 bg-blue-50/30' 
+                        ? 'border-green-500 bg-green-50/30' 
                         : criticos 
                           ? 'border-red-300 bg-red-50/20' 
                           : 'border-slate-200 hover:border-slate-300'
@@ -238,7 +236,6 @@ const SitesManager: React.FC = () => {
                       <input type="text" value={editSectors} onChange={(e) => setEditSectors(e.target.value)} className="w-full rounded border border-slate-300 h-8 px-2 text-xs" placeholder="Sectores (separados por coma)" />
                       <input type="text" value={editEmails} onChange={(e) => setEditEmails(e.target.value)} className="w-full rounded border border-slate-300 h-8 px-2 text-xs" placeholder="Emails (separados por coma)" />
                       
-                      {/* REQUISITOS EN EDICIÓN */}
                       <div className="border-t pt-2 mt-2">
                         <span className="font-bold text-[10px] text-slate-500 flex items-center gap-1 mb-2">
                           <FileCheck className="w-3 h-3" /> Requisitos
@@ -251,7 +248,7 @@ const SitesManager: React.FC = () => {
                               const aplicado = editRequisitosSeleccionados[req.id];
                               const seleccionado = !!aplicado;
                               return (
-                                <div key={req.id} className={`p-2 rounded border text-[10px] ${seleccionado ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                                <div key={req.id} className={`p-2 rounded border text-[10px] ${seleccionado ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
                                   <label className="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" checked={seleccionado} onChange={() => handleToggleRequisito(req.id, req, true)} className="w-3 h-3" />
                                     <span className="font-medium">{req.nombre}</span>
@@ -289,12 +286,11 @@ const SitesManager: React.FC = () => {
                       )}
                       <div onClick={() => setSelectedSite(s.id === selectedSite ? '' : s.id)} className="cursor-pointer">
                         <h4 className="font-extrabold text-xs flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                          <MapPin className="w-3.5 h-3.5 text-green-600" />
                           {s.name}
                         </h4>
                         <p className="text-[10px] text-slate-400 mt-0.5">{s.description}</p>
                         
-                        {/* REQUISITOS VISUALIZACIÓN */}
                         {reqsConVencimiento.length > 0 && (
                           <div className="mt-2 pt-2 border-t">
                             <span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1 mb-1">
@@ -336,7 +332,7 @@ const SitesManager: React.FC = () => {
                         )}
                       </div>
                       <div className="absolute top-2 right-2 flex gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); handleStartEdit(s); }} className="p-1 rounded-full hover:bg-blue-50 text-slate-400 hover:text-blue-500 transition-colors" title="Editar sitio">
+                        <button onClick={(e) => { e.stopPropagation(); handleStartEdit(s); }} className="p-1 rounded-full hover:bg-green-50 text-slate-400 hover:text-green-500 transition-colors" title="Editar sitio">
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); handleDeleteSite(s.id, s.name); }} className="p-1 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar sitio">
@@ -373,9 +369,8 @@ const SitesManager: React.FC = () => {
               <input type="text" value={newEmails} onChange={(e) => setNewEmails(e.target.value)} placeholder="jefe@planta.com, calidad@planta.com" className="w-full rounded border border-slate-200 mt-1 h-9 p-2 bg-white" />
             </div>
             
-            {/* SECCIÓN REQUISITOS */}
             <div className="border-t pt-3">
-              <button type="button" onClick={() => setMostrarRequisitos(!mostrarRequisitos)} className="font-bold text-slate-500 flex items-center gap-1 text-[10px] hover:text-blue-600">
+              <button type="button" onClick={() => setMostrarRequisitos(!mostrarRequisitos)} className="font-bold text-slate-500 flex items-center gap-1 text-[10px] hover:text-green-600">
                 <FileCheck className="w-3 h-3" />
                 {mostrarRequisitos ? '▼' : '▶'} Requisitos aplicables
               </button>
@@ -389,7 +384,7 @@ const SitesManager: React.FC = () => {
                       const aplicado = requisitosSeleccionados[req.id];
                       const seleccionado = !!aplicado;
                       return (
-                        <div key={req.id} className={`p-2 rounded border text-[10px] ${seleccionado ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                        <div key={req.id} className={`p-2 rounded border text-[10px] ${seleccionado ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={seleccionado} onChange={() => handleToggleRequisito(req.id, req)} className="w-3 h-3" />
                             <span className="font-medium">{req.nombre}</span>
@@ -412,7 +407,7 @@ const SitesManager: React.FC = () => {
               )}
             </div>
             
-            <button type="submit" disabled={isSaving} className="w-full py-2 bg-blue-600 text-white font-bold rounded text-xs hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={isSaving} className="w-full py-2 bg-green-600 text-white font-bold rounded text-xs hover:bg-green-700 disabled:opacity-50">
               {isSaving ? 'Guardando...' : 'Registrar Sitio'}
             </button>
           </form>

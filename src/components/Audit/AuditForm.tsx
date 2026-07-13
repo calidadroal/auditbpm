@@ -24,7 +24,7 @@ const OPCIONES_CHECKLIST: { value: RespuestaChecklist; label: string; color: str
 ];
 
 const RIESGO_LABELS: Record<string, string> = { 'critico': '🔴 Crítico', 'medio': '🟡 Medio', 'bajo': '🟢 Bajo' };
-const RIESGO_COLORS: Record<string, string> = { 'critico': 'border-red-500 bg-red-50', 'medio': 'border-yellow-500 bg-yellow-50', 'bajo': 'border-blue-500 bg-blue-50' };
+const RIESGO_COLORS: Record<string, string> = { 'critico': 'border-red-500 bg-red-50', 'medio': 'border-yellow-500 bg-yellow-50', 'bajo': 'border-green-500 bg-green-50' };
 
 function comprimirImagen(file: File, maxWidth: number = 800, calidad: number = 0.6): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -237,7 +237,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     e.preventDefault(); setErrors([]);
     if (!currentConfig || !user) return;
 
-    // En guardado parcial no se validan todos los campos
     if (!esGuardadoParcial) {
       if (!isEditing && (currentConfig.requireQR || currentConfig.sectorizado) && !qrValidated && !currentConfig.sectorizado && !esGestionComercio) { setErrors(['Debe escanear el QR antes de finalizar']); return; }
       if (!isEditing && currentConfig.sectorizado && validatedGroups.length < grupos.length) { setErrors([`Faltan validar ${grupos.length - validatedGroups.length} sector(es) con QR`]); return; }
@@ -454,10 +453,10 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
               <p className="text-xs text-yellow-500 mt-2">Pendientes: {getPendingSyncCount()} auditoría(s)</p>
             </div>
           ) : resultado.parcial ? (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <Save className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-              <p className="text-blue-800 font-medium">Guardado parcial completado</p>
-              <p className="text-sm text-blue-600 mt-1">Podés continuar esta auditoría más tarde desde el Dashboard.</p>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <Save className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <p className="text-green-800 font-medium">Guardado parcial completado</p>
+              <p className="text-sm text-green-600 mt-1">Podés continuar esta auditoría más tarde desde el Dashboard.</p>
             </div>
           ) : (
             <>
@@ -469,9 +468,9 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
           )}
           
           {resultado.geolocalizacion && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-blue-700">📍 Ubicación registrada: <a href={`https://www.google.com/maps?q=${resultado.geolocalizacion.lat},${resultado.geolocalizacion.lng}`} target="_blank" rel="noopener noreferrer" className="underline font-bold">Ver en Google Maps</a></p>
-              <p className="text-xs text-blue-500 mt-1">{resultado.geolocalizacion.lat.toFixed(6)}, {resultado.geolocalizacion.lng.toFixed(6)}</p>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-green-700">📍 Ubicación registrada: <a href={`https://www.google.com/maps?q=${resultado.geolocalizacion.lat},${resultado.geolocalizacion.lng}`} target="_blank" rel="noopener noreferrer" className="underline font-bold">Ver en Google Maps</a></p>
+              <p className="text-xs text-green-500 mt-1">{resultado.geolocalizacion.lat.toFixed(6)}, {resultado.geolocalizacion.lng.toFixed(6)}</p>
             </div>
           )}
           {resultado.establecimiento && <p className="text-sm text-gray-600 mb-2">🏫 Establecimiento: <strong>{resultado.establecimiento}</strong></p>}
@@ -480,7 +479,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
             {!resultado.offline && !resultado.parcial && (
               <button onClick={() => generarPDF(resultado as AuditRecord)} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">📄 Descargar PDF</button>
             )}
-            <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setRespuestasGestion({}); setRespuestasSiNo({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Nuevo Control</button>
+            <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setRespuestasGestion({}); setRespuestasSiNo({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Nuevo Control</button>
           </div>
         </div>
       </div>
@@ -507,7 +506,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       )}
 
       {permitirGuardadoParcial && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 flex items-center gap-2">
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
           <Save className="w-4 h-4" />
           Guardado parcial habilitado - Podés guardar y continuar después
         </div>
@@ -536,10 +535,10 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
 
         <div><label className="block text-sm font-medium mb-1 flex items-center gap-1"><MapPin className="w-4 h-4 text-gray-500" /> Establecimiento (opcional)</label><input type="text" value={establecimiento} onChange={(e) => setEstablecimiento(e.target.value)} placeholder="Ej: Escuela N° 234, Salón Norte, etc." className="w-full px-3 py-2 border rounded-lg text-sm" /><p className="text-xs text-gray-400 mt-1">Identificá el establecimiento específico dentro del sitio genérico.</p></div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
-            <MapPin className="w-5 h-5 text-blue-600" />
-            <h3 className="font-bold text-blue-800 text-sm">📍 Ubicación actual</h3>
+            <MapPin className="w-5 h-5 text-green-600" />
+            <h3 className="font-bold text-green-800 text-sm">📍 Ubicación actual</h3>
             {geolocalizacion && (
               <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full ml-auto">✅ Capturada</span>
             )}
@@ -547,21 +546,21 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
           
           {geoLoading ? (
             <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-              <p className="text-sm text-blue-600">Obteniendo ubicación...</p>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-500 border-t-transparent"></div>
+              <p className="text-sm text-green-600">Obteniendo ubicación...</p>
             </div>
           ) : geolocalizacion ? (
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-blue-700">✅ Ubicación registrada</span>
-                <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-blue-500 underline hover:text-blue-700 ml-auto">🔄 Reintentar</button>
+                <span className="text-sm text-green-700">✅ Ubicación registrada</span>
+                <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-green-500 underline hover:text-green-700 ml-auto">🔄 Reintentar</button>
               </div>
-              <p className="text-xs text-blue-500 mt-1 font-mono">
+              <p className="text-xs text-green-500 mt-1 font-mono">
                 {geolocalizacion.lat.toFixed(6)}, {geolocalizacion.lng.toFixed(6)}
                 {geolocalizacion.precision && ` (±${Math.round(geolocalizacion.precision)}m)`}
               </p>
               {mapsUrl && (
-                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline hover:text-blue-800 mt-1 inline-block">
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-green-600 underline hover:text-green-800 mt-1 inline-block">
                   🗺️ Ver en Google Maps
                 </a>
               )}
@@ -569,10 +568,10 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
           ) : geoError ? (
             <div>
               <p className="text-sm text-red-600">{geoError}</p>
-              <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-blue-600 underline hover:text-blue-800 mt-1">🔄 Reintentar</button>
+              <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-green-600 underline hover:text-green-800 mt-1">🔄 Reintentar</button>
             </div>
           ) : (
-            <button type="button" onClick={capturarGeolocalizacion} className="px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors">
+            <button type="button" onClick={capturarGeolocalizacion} className="px-3 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors">
               📍 Obtener ubicación
             </button>
           )}
@@ -726,13 +725,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                       {q.instructions && <p className="text-xs text-gray-400 italic mb-2">📋 {q.instructions}</p>}
                       <div className="flex flex-wrap gap-2 mb-2">{OPCIONES.map(op => (<button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }} className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{op.label}</button>))}</div>
                       <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={comentarios[q.id] || ''}
-                          onChange={(e) => handleComentario(q.id, e.target.value)}
-                          placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'}
-                          className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`}
-                        />
+                        <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} />
                         <div><div className="flex gap-2 flex-wrap"><button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button><button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button></div><input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />{fotos[q.id] && fotos[q.id].length > 0 && (<div className="flex gap-2 mt-2 flex-wrap">{fotos[q.id].map((url, i) => (<div key={i} className="relative group"><img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" /><button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button></div>))}</div>)}</div>
                       </div>
                     </div>
@@ -747,7 +740,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-sm">{q.text}</p>
                         {esChecklist && q.nivelRiesgoMunicipal && (
-                          <span className={`text-xs font-bold ${q.nivelRiesgoMunicipal === 'critico' ? 'text-red-600' : q.nivelRiesgoMunicipal === 'medio' ? 'text-yellow-600' : 'text-blue-600'}`}>
+                          <span className={`text-xs font-bold ${q.nivelRiesgoMunicipal === 'critico' ? 'text-red-600' : q.nivelRiesgoMunicipal === 'medio' ? 'text-yellow-600' : 'text-green-600'}`}>
                             {RIESGO_LABELS[q.nivelRiesgoMunicipal]}
                           </span>
                         )}
@@ -774,33 +767,19 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                     }
                   </div>
                   <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={comentarios[q.id] || ''}
-                      onChange={(e) => handleComentario(q.id, e.target.value)}
-                      placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`}
-                    />
+                    <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} />
                     <div>
                       <div className="flex gap-2 flex-wrap">
-                        <button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]}
-                          className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300"
-                        >📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button>
-                        <button type="button" onClick={() => handleAddFotoUrl(q.id)}
-                          className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                        >🔗 URL</button>
+                        <button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button>
+                        <button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button>
                       </div>
-                      <input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment"
-                        onChange={(e) => handleFileChange(q.id, e)} className="hidden"
-                      />
+                      <input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />
                       {fotos[q.id] && fotos[q.id].length > 0 && (
                         <div className="flex gap-2 mt-2 flex-wrap">
                           {fotos[q.id].map((url, i) => (
                             <div key={i} className="relative group">
                               <img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" />
-                              <button type="button" onClick={() => handleRemoveFoto(q.id, i)}
-                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                              >✕</button>
+                              <button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                             </div>
                           ))}
                         </div>
@@ -816,11 +795,11 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         <div className="flex space-x-3 pt-4 border-t">
           {isEditing && <button type="button" onClick={onCancelEdit} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">Cancelar</button>}
           {permitirGuardadoParcial && (
-            <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={saving} className="px-6 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium flex items-center gap-2">
+            <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={saving} className="px-6 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium flex items-center gap-2">
               <Save className="w-4 h-4" /> Guardar y continuar después
             </button>
           )}
-          <button type="submit" disabled={saving} className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 font-medium">
+          <button type="submit" disabled={saving} className="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-green-300 font-medium">
             {saving ? 'Guardando...' : isEditing ? '💾 Guardar Cambios' : isOnline ? 'Finalizar' : '📱 Guardar en dispositivo'}
           </button>
         </div>

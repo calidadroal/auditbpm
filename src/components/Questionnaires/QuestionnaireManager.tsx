@@ -23,7 +23,7 @@ const NORMAS = [
 const RIESGOS_MUNICIPALES: { value: NivelRiesgoMunicipal; label: string; color: string }[] = [
   { value: 'critico', label: '🔴 Crítico - Puede derivar en clausura', color: 'text-red-700' },
   { value: 'medio', label: '🟡 Medio - Requiere atención', color: 'text-yellow-700' },
-  { value: 'bajo', label: '🟢 Bajo - Observación menor', color: 'text-blue-700' },
+  { value: 'bajo', label: '🟢 Bajo - Observación menor', color: 'text-green-700' },
 ];
 
 const TIPOS_PREGUNTA_GESTION: { value: TipoPreguntaGestion; label: string; icon: string }[] = [
@@ -427,7 +427,7 @@ const QuestionnaireManager: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Gestión de Cuestionarios</h2>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={startNewSimple} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm flex items-center gap-1">
+          <button onClick={startNewSimple} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm flex items-center gap-1">
             <FileText className="w-4 h-4" /> + Simple
           </button>
           <button onClick={startNewSectorizado} className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 text-sm flex items-center gap-1">
@@ -446,7 +446,7 @@ const QuestionnaireManager: React.FC = () => {
       {showForm && (
         <div className="bg-white border rounded-lg p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
-            {esGestionComercio ? <ShoppingBag className="w-5 h-5 text-emerald-600" /> : esChecklist ? <ClipboardCheck className="w-5 h-5 text-red-600" /> : sectorizado ? <Building2 className="w-5 h-5 text-purple-600" /> : <FileText className="w-5 h-5 text-blue-600" />}
+            {esGestionComercio ? <ShoppingBag className="w-5 h-5 text-emerald-600" /> : esChecklist ? <ClipboardCheck className="w-5 h-5 text-red-600" /> : sectorizado ? <Building2 className="w-5 h-5 text-purple-600" /> : <FileText className="w-5 h-5 text-green-600" />}
             <h3 className="text-lg font-semibold">
               {editingId ? 'Editar Cuestionario' : esGestionComercio ? 'Nuevo Cuestionario Gestión Comercio' : esChecklist ? 'Nuevo Checklist Municipal' : sectorizado ? 'Nuevo Cuestionario Sectorizado' : 'Nuevo Cuestionario Simple'}
             </h3>
@@ -489,8 +489,8 @@ const QuestionnaireManager: React.FC = () => {
             </div>
 
             {user?.role !== 'admin' && (
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-medium text-sm text-blue-800 mb-2">📌 Sitios donde se aplica este cuestionario</h4>
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <h4 className="font-medium text-sm text-green-800 mb-2">📌 Sitios donde se aplica este cuestionario</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {sites.map(site => (
                     <label key={site.id} className="flex items-center space-x-2 p-2 bg-white rounded border hover:bg-gray-50 cursor-pointer">
@@ -546,7 +546,7 @@ const QuestionnaireManager: React.FC = () => {
               </div>
             )}
 
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
               <h4 className="font-medium mb-3">📧 Configuración de Alertas</h4>
               <div className="space-y-3">
                 <div>
@@ -605,7 +605,7 @@ const QuestionnaireManager: React.FC = () => {
                                   <button type="button" onClick={() => removeOpcion(index, opIdx)} className="text-red-500 text-xs">✕</button>
                                 </div>
                               ))}
-                              <button type="button" onClick={() => addOpcion(index)} className="text-xs text-blue-600 hover:underline">+ Agregar opción</button>
+                              <button type="button" onClick={() => addOpcion(index)} className="text-xs text-green-600 hover:underline">+ Agregar opción</button>
                             </div>
                           )}
                           <div>
@@ -667,7 +667,7 @@ const QuestionnaireManager: React.FC = () => {
                                     key={riesgo.value}
                                     type="button"
                                     onClick={() => updateQuestion(index, { nivelRiesgoMunicipal: riesgo.value })}
-                                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${question.nivelRiesgoMunicipal === riesgo.value ? 'ring-2 ring-offset-1 border-' + (riesgo.value === 'critico' ? 'red-500 bg-red-50' : riesgo.value === 'medio' ? 'yellow-500 bg-yellow-50' : 'blue-500 bg-blue-50') : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${question.nivelRiesgoMunicipal === riesgo.value ? 'ring-2 ring-offset-1 border-' + (riesgo.value === 'critico' ? 'red-500 bg-red-50' : riesgo.value === 'medio' ? 'yellow-500 bg-yellow-50' : 'green-500 bg-green-50') : 'bg-white border-gray-300 hover:bg-gray-50'}`}
                                   >
                                     {riesgo.label}
                                   </button>
@@ -725,7 +725,7 @@ const QuestionnaireManager: React.FC = () => {
                     ) : q.sectorizado ? (
                       <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 flex items-center gap-1 w-fit"><Building2 className="w-3 h-3" /> Sectorizado</span>
                     ) : (
-                      <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 flex items-center gap-1 w-fit"><FileText className="w-3 h-3" /> Simple</span>
+                      <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 flex items-center gap-1 w-fit"><FileText className="w-3 h-3" /> Simple</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs">{q.norma || 'BPM General'}</td>
@@ -740,7 +740,7 @@ const QuestionnaireManager: React.FC = () => {
                       : `${q.questions?.length || 0} preguntas`
                     }
                   </td>
-                  <td className="px-4 py-3"><div className="flex space-x-2"><button onClick={() => handleEdit(q)} className="text-blue-600 hover:text-blue-800 text-xs">Editar</button><button onClick={() => handleDuplicate(q)} className="text-purple-600 hover:text-purple-800 text-xs">Duplicar</button><button onClick={() => handleDelete(q.id)} className="text-red-600 hover:text-red-800 text-xs">Desactivar</button></div></td>
+                  <td className="px-4 py-3"><div className="flex space-x-2"><button onClick={() => handleEdit(q)} className="text-green-600 hover:text-green-800 text-xs">Editar</button><button onClick={() => handleDuplicate(q)} className="text-purple-600 hover:text-purple-800 text-xs">Duplicar</button><button onClick={() => handleDelete(q.id)} className="text-red-600 hover:text-red-800 text-xs">Desactivar</button></div></td>
                 </tr>
               ))}
               {questionnaires.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No hay cuestionarios</td></tr>}

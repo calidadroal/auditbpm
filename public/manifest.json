@@ -1,0 +1,16 @@
+{
+  "name": "TodoEnRegla",
+  "short_name": "TodoEnRegla",
+  "description": "Sistema de Auditorías y Gestión de Comercios",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

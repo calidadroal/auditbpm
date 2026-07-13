@@ -157,7 +157,7 @@ const App: React.FC = () => {
   if (authLoading || verificandoSuspension) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
       </div>
     );
   }
@@ -208,7 +208,7 @@ const App: React.FC = () => {
       )}
       
       {isOnline && pendingSync > 0 && (
-        <div className="bg-blue-500 text-white px-4 py-2 text-center text-sm font-medium">
+        <div className="bg-green-500 text-white px-4 py-2 text-center text-sm font-medium">
           📤 {pendingSync} auditoría{pendingSync !== 1 ? 's' : ''} pendiente{pendingSync !== 1 ? 's' : ''} de sincronizar - 
           <button 
             onClick={async () => {
@@ -216,7 +216,7 @@ const App: React.FC = () => {
               setPendingSync(getPendingSyncCount());
               alert(`Sincronización completada: ${result.sincronizados} éxitos, ${result.errores} errores`);
             }}
-            className="underline ml-1 font-bold hover:text-blue-100"
+            className="underline ml-1 font-bold hover:text-green-100"
           >
             Sincronizar ahora
           </button>

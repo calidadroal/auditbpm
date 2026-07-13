@@ -82,10 +82,10 @@ const LoginScreen: React.FC = () => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <Shield className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-black text-slate-900">AuditBPM</h1>
+          <Shield className="w-16 h-16 text-green-600 mx-auto mb-4" />
+          <h1 className="text-3xl font-black text-slate-900">TodoEnRegla</h1>
           <p className="text-sm text-slate-500 mt-2">
-            {resetMode ? 'Recuperar Contraseña' : 'Gastronomía & Seguridad Operativa'}
+            {resetMode ? 'Recuperar Contraseña' : 'Auditorías y Gestión de Comercios'}
           </p>
         </div>
 
@@ -96,9 +96,9 @@ const LoginScreen: React.FC = () => {
               <p className="font-bold text-red-800 text-sm">Prueba gratuita finalizada</p>
             </div>
             <p className="text-xs text-red-600">
-              Tu período de prueba de 7 días ha terminado. Contactanos para suscribirte y seguir usando AuditBPM.
+              Tu período de prueba de 7 días ha terminado. Contactanos para suscribirte y seguir usando TodoEnRegla.
             </p>
-            <a href="mailto:todoenregla.app@gmail.com" className="inline-block mt-2 text-sm text-blue-600 font-bold hover:underline">
+            <a href="mailto:todoenregla.app@gmail.com" className="inline-block mt-2 text-sm text-green-600 font-bold hover:underline">
               Contactar para suscribirme
             </a>
           </div>
@@ -108,16 +108,16 @@ const LoginScreen: React.FC = () => {
           <form onSubmit={handleResetPassword} className="space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="usuario@ejemplo.com" required />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none" placeholder="usuario@ejemplo.com" required />
               <p className="text-xs text-slate-400 mt-1">Te enviaremos un link para restablecer tu contraseña.</p>
             </div>
             {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3"><p className="text-red-700 text-xs font-bold">{error}</p></div>}
             {success && <div className="bg-green-50 border border-green-200 rounded-lg p-3"><p className="text-green-700 text-xs font-bold">{success}</p></div>}
-            <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <button type="submit" disabled={loading} className="w-full py-2.5 bg-green-600 text-white font-bold rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {loading ? 'Enviando...' : 'Enviar Email de Recuperación'}
             </button>
             <div className="text-center">
-              <button type="button" onClick={() => { setResetMode(false); setError(''); setSuccess(''); }} className="text-sm text-blue-600 font-bold hover:underline">
+              <button type="button" onClick={() => { setResetMode(false); setError(''); setSuccess(''); }} className="text-sm text-green-600 font-bold hover:underline">
                 Volver al inicio de sesión
               </button>
             </div>
@@ -126,11 +126,11 @@ const LoginScreen: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="usuario@ejemplo.com" required />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none" placeholder="usuario@ejemplo.com" required />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Contraseña</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="........" required minLength={6} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none" placeholder="........" required minLength={6} />
             </div>
             
             {isRegister && (
@@ -143,14 +143,14 @@ const LoginScreen: React.FC = () => {
                       setAceptaTerminos(e.target.checked);
                       if (errorTerminos) setErrorTerminos('');
                     }}
-                    className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="mt-1 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                   />
                   <span className="text-xs text-gray-700">
                     Acepto los{' '}
                     <a 
                       href="/terminos.html" 
                       target="_blank" 
-                      className="text-blue-600 hover:underline font-medium"
+                      className="text-green-600 hover:underline font-medium"
                     >
                       Términos de Uso
                     </a>
@@ -166,7 +166,7 @@ const LoginScreen: React.FC = () => {
             {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3"><p className="text-red-700 text-xs font-bold">{error}</p></div>}
             {success && <div className="bg-green-50 border border-green-200 rounded-lg p-3"><p className="text-green-700 text-xs font-bold">{success}</p></div>}
             
-            <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <button type="submit" disabled={loading} className="w-full py-2.5 bg-green-600 text-white font-bold rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -188,12 +188,12 @@ const LoginScreen: React.FC = () => {
                   setErrorTerminos('');
                   setAceptaTerminos(false);
                 }} 
-                className="text-sm text-blue-600 font-bold hover:underline block w-full"
+                className="text-sm text-green-600 font-bold hover:underline block w-full"
               >
                 {isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
               </button>
               {!isRegister && (
-                <button type="button" onClick={() => { setResetMode(true); setError(''); setSuccess(''); }} className="text-xs text-slate-500 hover:text-blue-600 hover:underline">
+                <button type="button" onClick={() => { setResetMode(true); setError(''); setSuccess(''); }} className="text-xs text-slate-500 hover:text-green-600 hover:underline">
                   ¿Olvidaste tu contraseña?
                 </button>
               )}
@@ -202,7 +202,7 @@ const LoginScreen: React.FC = () => {
         )}
         
         <div className="mt-6 pt-4 border-t border-slate-200">
-          <p className="text-xs text-slate-400 text-center">Sistema de Auditoría Interna v2.0</p>
+          <p className="text-xs text-slate-400 text-center">TodoEnRegla v2.0</p>
         </div>
       </div>
     </div>

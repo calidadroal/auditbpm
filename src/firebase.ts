@@ -52,12 +52,12 @@ import type {
 } from './types';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyAuBRwI3V_j0mkNwNkuZE9Qh7H51QBL8Vo",
+  authDomain: "todoenregla-e63aa.firebaseapp.com",
+  projectId: "todoenregla-e63aa",
+  storageBucket: "todoenregla-e63aa.firebasestorage.app",
+  messagingSenderId: "396645482275",
+  appId: "1:396645482275:web:ea4bacf8c5659b9d0e5696"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -475,12 +475,12 @@ export const verificarVencimientos = async (): Promise<void> => {
     if (diasRestantes <= 0) {
       await updateAuditSchedule(schedule.id, { estado: 'vencida' });
       if (schedule.emailsAlerta.length > 0) {
-        await sendEmailNotification(schedule.emailsAlerta, `[AuditBPM] Auditoria VENCIDA - ${schedule.siteName}`, `La auditoria programada para ${schedule.siteName} esta VENCIDA.\nFrecuencia: ${schedule.frecuencia}\nVencia el: ${proxima.toLocaleDateString('es-AR')}\nDias de atraso: ${Math.abs(diasRestantes)}\n\nVer en: https://auditoriacalidad.netlify.app`);
+        await sendEmailNotification(schedule.emailsAlerta, `[TodoEnRegla] Auditoria VENCIDA - ${schedule.siteName}`, `La auditoria programada para ${schedule.siteName} esta VENCIDA.\nFrecuencia: ${schedule.frecuencia}\nVencia el: ${proxima.toLocaleDateString('es-AR')}\nDias de atraso: ${Math.abs(diasRestantes)}\n\nVer en: https://auditoriacalidad.netlify.app`);
       }
     } else if (diasRestantes <= schedule.diasAlertaVencimiento) {
       await updateAuditSchedule(schedule.id, { estado: 'proxima' });
       if (schedule.emailsAlerta.length > 0) {
-        await sendEmailNotification(schedule.emailsAlerta, `[AuditBPM] Auditoria proxima - ${schedule.siteName}`, `La auditoria de ${schedule.siteName} vence en ${diasRestantes} dias.\nFrecuencia: ${schedule.frecuencia}\nFecha limite: ${proxima.toLocaleDateString('es-AR')}\n\nVer en: https://auditoriacalidad.netlify.app`);
+        await sendEmailNotification(schedule.emailsAlerta, `[TodoEnRegla] Auditoria proxima - ${schedule.siteName}`, `La auditoria de ${schedule.siteName} vence en ${diasRestantes} dias.\nFrecuencia: ${schedule.frecuencia}\nFecha limite: ${proxima.toLocaleDateString('es-AR')}\n\nVer en: https://auditoriacalidad.netlify.app`);
       }
     } else {
       await updateAuditSchedule(schedule.id, { estado: 'al_dia' });

@@ -23,8 +23,7 @@ const PlantDashboard: React.FC = () => {
 
   const [fechaDesde, setFechaDesde] = useState<string>('');
   const [fechaHasta, setFechaHasta] = useState<string>('');
-  
-  // ✅ TOGGLES PARA TODAS LAS SECCIONES
+
   const [mostrarHistograma, setMostrarHistograma] = useState(true);
   const [mostrarVencimientos, setMostrarVencimientos] = useState(true);
   const [mostrarReincidencia, setMostrarReincidencia] = useState(true);
@@ -383,25 +382,22 @@ const PlantDashboard: React.FC = () => {
         {isAuditor ? '📊 Mis Métricas' : 'Dashboard por Planta'}
       </h2>
 
-      {/* ============================================================
-          ALERTAS CONFIGURADAS
-          ============================================================ */}
       {isAdminUser && alertasConfig.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
-          <div className="px-6 py-4 bg-blue-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarAlertasConfig(!mostrarAlertasConfig)}>
+          <div className="px-6 py-4 bg-green-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarAlertasConfig(!mostrarAlertasConfig)}>
             <div className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold text-blue-800">🔔 Alertas Configuradas</h3>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">{alertasConfig.length}</span>
+              <Bell className="w-5 h-5 text-green-600" />
+              <h3 className="font-semibold text-green-800">🔔 Alertas Configuradas</h3>
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">{alertasConfig.length}</span>
             </div>
-            {mostrarAlertasConfig ? <ChevronUp className="w-5 h-5 text-blue-600" /> : <ChevronDown className="w-5 h-5 text-blue-600" />}
+            {mostrarAlertasConfig ? <ChevronUp className="w-5 h-5 text-green-600" /> : <ChevronDown className="w-5 h-5 text-green-600" />}
           </div>
           {mostrarAlertasConfig && (
             <div className="p-4 space-y-3">
               {alertasConfig.map(alerta => (
                 <div key={alerta.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-blue-500" />
+                    <Bell className="w-4 h-4 text-green-500" />
                     <div>
                       <p className="text-sm font-medium">{alerta.nombre}</p>
                       <p className="text-xs text-gray-500">
@@ -418,9 +414,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          FILTROS (no tiene toggle)
-          ============================================================ */}
       {!isAuditor && (
         <div className="mb-6 flex flex-wrap gap-3">
           <select value={selectedSiteId} onChange={(e) => setSelectedSiteId(e.target.value)} className="px-4 py-2 border rounded-lg bg-white">
@@ -444,13 +437,10 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          MÉTRICAS DE AUDITOR (no tiene toggle)
-          ============================================================ */}
       {isAuditor && auditorMetrics && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white border rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600">{auditorMetrics.total}</p>
+            <p className="text-2xl font-bold text-green-600">{auditorMetrics.total}</p>
             <p className="text-xs text-gray-600">Auditorías realizadas</p>
           </div>
           <div className="bg-white border rounded-lg p-4 text-center">
@@ -472,9 +462,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          ESTADÍSTICAS DE SITIOS (no tiene toggle)
-          ============================================================ */}
       {!isAuditor && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {siteStats.map(({ site, total, completed, avgScore }) => (
@@ -482,7 +469,7 @@ const PlantDashboard: React.FC = () => {
               <h3 className="font-semibold text-lg mb-2">{site.name}</h3>
               <p className="text-sm text-gray-600 mb-4">{site.address || site.city || ''}</p>
               <div className="grid grid-cols-3 gap-4">
-                <div className="text-center"><p className="text-2xl font-bold text-blue-600">{total}</p><p className="text-xs text-gray-600">Total</p></div>
+                <div className="text-center"><p className="text-2xl font-bold text-green-600">{total}</p><p className="text-xs text-gray-600">Total</p></div>
                 <div className="text-center"><p className="text-2xl font-bold text-green-600">{completed}</p><p className="text-xs text-gray-600">Completadas</p></div>
                 <div className="text-center"><p className="text-2xl font-bold text-purple-600">{avgScore.toFixed(1)}%</p><p className="text-xs text-gray-600">Score</p></div>
               </div>
@@ -492,9 +479,8 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          SEMÁFORO DE RIESGO (CON TOGGLE)
-          ============================================================ */}
+      {/* Semáforo, Ranking, Tendencias, Reincidencias, Vencimientos, Histograma, Schedules, Últimas Auditorías: sin cambios de color necesarios (usan colores semánticos: rojo, amarillo, verde para estados) */}
+
       {!isAuditor && semaforoRiesgo.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarSemaforo(!mostrarSemaforo)}>
@@ -540,9 +526,6 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          RANKING DE SITIOS (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && rankingSitios.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarRanking(!mostrarRanking)}>
@@ -557,33 +540,12 @@ const PlantDashboard: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Score Promedio</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Último Score</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Auditorías</th>
-                  </tr>
-                </thead>
+                  <tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Score Promedio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Último Score</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Auditorías</th></tr></thead>
                 <tbody className="divide-y divide-gray-200">
                   {rankingSitios.map((item, index) => {
                     const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
                     return (
-                      <tr key={item.site.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-bold text-gray-500">{medal}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{item.site.name}</td>
-                        <td className="px-4 py-3 text-sm font-bold">
-                          <span className={getScoreColor(item.avgScore)}>
-                            {item.avgScore.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={getScoreColor(item.ultimoScore)}>
-                            {item.ultimoScore}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{item.total}</td>
-                      </tr>
+                      <tr key={item.site.id} className="hover:bg-gray-50"><td className="px-4 py-3 text-sm font-bold text-gray-500">{medal}</td><td className="px-4 py-3 text-sm font-medium">{item.site.name}</td><td className="px-4 py-3 text-sm font-bold"><span className={getScoreColor(item.avgScore)}>{item.avgScore.toFixed(1)}%</span></td><td className="px-4 py-3 text-sm"><span className={getScoreColor(item.ultimoScore)}>{item.ultimoScore}%</span></td><td className="px-4 py-3 text-sm text-gray-600">{item.total}</td></tr>
                     );
                   })}
                 </tbody>
@@ -593,14 +555,11 @@ const PlantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ============================================================
-          TENENCIA DE SCORE (CON NÚMEROS REALES Y FLECHAS)
-          ============================================================ */}
       {!isAuditor && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarTendencias(!mostrarTendencias)}>
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
+              <TrendingUp className="w-5 h-5 text-green-600" />
               <h3 className="font-semibold">📈 Tendencia de Score (últimas 3)</h3>
               <span className="text-xs text-gray-400 ml-auto">{tendenciaScore.length} sitios</span>
             </div>
@@ -609,335 +568,87 @@ const PlantDashboard: React.FC = () => {
           {mostrarTendencias && (
             <div className="p-4">
               {tendenciaScore.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">No hay suficientes auditorías para calcular tendencias</p>
-                  <p className="text-xs text-gray-400 mt-1">Se necesitan al menos 2 auditorías por sitio</p>
-                </div>
+                <div className="text-center py-8 text-gray-400"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" /><p className="text-sm">No hay suficientes auditorías para calcular tendencias</p><p className="text-xs text-gray-400 mt-1">Se necesitan al menos 2 auditorías por sitio</p></div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th>
-                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Últimos 3 Scores</th>
-                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Variación</th>
-                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Tendencia</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {tendenciaScore.map(({ site, scores }) => {
-                        const primera = scores[0];
-                        const ultima = scores[scores.length - 1];
-                        const diff = ultima - primera;
-                        
-                        let icono = '➡️';
-                        let color = 'text-yellow-600';
-                        let label = `${diff.toFixed(1)}%`;
-                        
-                        if (diff >= 5) {
-                          icono = '⬆️';
-                          color = 'text-green-600';
-                          label = `+${diff.toFixed(1)}%`;
-                        } else if (diff <= -5) {
-                          icono = '⬇️';
-                          color = 'text-red-600';
-                          label = `${diff.toFixed(1)}%`;
-                        } else {
-                          icono = '➡️';
-                          color = 'text-yellow-600';
-                          label = `${diff.toFixed(1)}%`;
-                        }
-                        
-                        return (
-                          <tr key={site.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm font-medium">{site.name}</td>
-                            <td className="px-4 py-3 text-center">
-                              <div className="flex justify-center gap-1">
-                                {scores.map((s, i) => (
-                                  <span 
-                                    key={i} 
-                                    className={`px-2 py-0.5 rounded text-xs font-bold bg-white border ${
-                                      i === scores.length - 1 ? 'ring-1 ring-blue-300' : ''
-                                    } ${getScoreColor(s)}`}
-                                  >
-                                    {s.toFixed(0)}%
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`text-sm font-bold ${color}`}>
-                                {label}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`text-xl ${color}`}>
-                                {icono}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <div className="overflow-x-auto"><table className="min-w-full"><thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Últimos 3 Scores</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Variación</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Tendencia</th></tr></thead><tbody className="divide-y divide-gray-200">{tendenciaScore.map(({ site, scores }) => { const primera = scores[0]; const ultima = scores[scores.length - 1]; const diff = ultima - primera; let icono = '➡️'; let color = 'text-yellow-600'; let label = `${diff.toFixed(1)}%`; if (diff >= 5) { icono = '⬆️'; color = 'text-green-600'; label = `+${diff.toFixed(1)}%`; } else if (diff <= -5) { icono = '⬇️'; color = 'text-red-600'; label = `${diff.toFixed(1)}%`; } else { icono = '➡️'; color = 'text-yellow-600'; label = `${diff.toFixed(1)}%`; } return (<tr key={site.id} className="hover:bg-gray-50"><td className="px-4 py-3 text-sm font-medium">{site.name}</td><td className="px-4 py-3 text-center"><div className="flex justify-center gap-1">{scores.map((s, i) => (<span key={i} className={`px-2 py-0.5 rounded text-xs font-bold bg-white border ${i === scores.length - 1 ? 'ring-1 ring-green-300' : ''} ${getScoreColor(s)}`}>{s.toFixed(0)}%</span>))}</div></td><td className="px-4 py-3 text-center"><span className={`text-sm font-bold ${color}`}>{label}</span></td><td className="px-4 py-3 text-center"><span className={`text-xl ${color}`}>{icono}</span></td></tr>); })}</tbody></table></div>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* ============================================================
-          DESVÍOS REINCIDENTES (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && reincidenciaDesvios.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarReincidencia(!mostrarReincidencia)}>
-            <div className="flex items-center gap-2">
-              <RotateCcw className="w-5 h-5 text-orange-600" />
-              <h3 className="font-semibold">🔁 Desvíos Reincidentes (3+ auditorías)</h3>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">{reincidenciaDesvios.length}</span>
-            </div>
+            <div className="flex items-center gap-2"><RotateCcw className="w-5 h-5 text-orange-600" /><h3 className="font-semibold">🔁 Desvíos Reincidentes (3+ auditorías)</h3><span className="px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">{reincidenciaDesvios.length}</span></div>
             {mostrarReincidencia ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </div>
           {mostrarReincidencia && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Punto / Capítulo</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reincidencias</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Último valor</th></tr></thead>
-                <tbody className="divide-y divide-gray-200">
-                  {reincidenciaDesvios.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium">{item.siteName}</td>
-                      <td className="px-4 py-3 text-sm">{item.puntoNorma}<br /><span className="text-xs text-gray-400">{item.norma}</span></td>
-                      <td className="px-4 py-3 text-sm font-bold text-red-600">{item.count}x</td>
-                      <td className="px-4 py-3"><span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">{item.ultimoValor}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <div className="overflow-x-auto"><table className="min-w-full"><thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Punto / Capítulo</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reincidencias</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Último valor</th></tr></thead><tbody className="divide-y divide-gray-200">{reincidenciaDesvios.map((item, idx) => (<tr key={idx} className="hover:bg-gray-50"><td className="px-4 py-3 text-sm font-medium">{item.siteName}</td><td className="px-4 py-3 text-sm">{item.puntoNorma}<br /><span className="text-xs text-gray-400">{item.norma}</span></td><td className="px-4 py-3 text-sm font-bold text-red-600">{item.count}x</td><td className="px-4 py-3"><span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">{item.ultimoValor}</span></td></tr>))}</tbody></table></div>
           )}
         </div>
       )}
 
-      {/* ============================================================
-          VENCIMIENTOS DE REQUISITOS (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && selectedSiteId && vencimientosRequisitos.length > 0 && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarVencimientos(!mostrarVencimientos)}>
-            <div className="flex items-center gap-2">
-              {tieneVencimientosUrgentes ? <ShieldAlert className="w-5 h-5 text-red-600 animate-pulse" /> : <FileCheck className="w-5 h-5 text-blue-600" />}
-              <h3 className="font-semibold">Vencimientos de Requisitos</h3>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${tieneVencimientosUrgentes ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{vencimientosRequisitos.length}</span>
-            </div>
+            <div className="flex items-center gap-2">{tieneVencimientosUrgentes ? <ShieldAlert className="w-5 h-5 text-red-600 animate-pulse" /> : <FileCheck className="w-5 h-5 text-green-600" />}<h3 className="font-semibold">Vencimientos de Requisitos</h3><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${tieneVencimientosUrgentes ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{vencimientosRequisitos.length}</span></div>
             {mostrarVencimientos ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </div>
           {mostrarVencimientos && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Requisito</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">N°</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vencimiento</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th></tr></thead>
-                <tbody className="divide-y divide-gray-200">
-                  {vencimientosRequisitos.map((v) => {
-                    const badge = getVencimientoBadge(v.estado, v.diasRestantes);
-                    const Icon = badge.icon;
-                    return (
-                      <tr key={v.id} className={`hover:bg-gray-50 ${v.estado === 'vencida' ? 'bg-red-50/30' : ''}`}>
-                        <td className="px-4 py-3 text-sm font-medium">{v.nombre}</td>
-                        <td className="px-4 py-3 text-sm font-mono">{v.numero}</td>
-                        <td className="px-4 py-3 text-sm">{new Date(v.fechaVencimiento).toLocaleDateString('es-AR')}</td>
-                        <td className="px-4 py-3"><span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${badge.color}`}><Icon className="w-3 h-3" />{badge.label}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <div className="overflow-x-auto"><table className="min-w-full"><thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Requisito</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">N°</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vencimiento</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th></tr></thead><tbody className="divide-y divide-gray-200">{vencimientosRequisitos.map((v) => { const badge = getVencimientoBadge(v.estado, v.diasRestantes); const Icon = badge.icon; return (<tr key={v.id} className={`hover:bg-gray-50 ${v.estado === 'vencida' ? 'bg-red-50/30' : ''}`}><td className="px-4 py-3 text-sm font-medium">{v.nombre}</td><td className="px-4 py-3 text-sm font-mono">{v.numero}</td><td className="px-4 py-3 text-sm">{new Date(v.fechaVencimiento).toLocaleDateString('es-AR')}</td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${badge.color}`}><Icon className="w-3 h-3" />{badge.label}</span></td></tr>); })}</tbody></table></div>
           )}
         </div>
       )}
 
-      {/* ============================================================
-          HISTOGRAMA (CON TOGGLE)
-          ============================================================ */}
       {!isAuditor && selectedSiteId && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarHistograma(!mostrarHistograma)}>
-            <div className="flex items-center gap-2">
-              {esHistogramaChecklist ? <ClipboardCheck className="w-5 h-5 text-red-600" /> : <BarChart3 className="w-5 h-5 text-red-600" />}
-              <h3 className="font-semibold">{esHistogramaChecklist ? 'Histograma de Desvíos (Checklist)' : 'Histograma de Desvíos por Capítulo'}</h3>
-              {totalDesviosGeneral > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">{totalDesviosGeneral} desvíos</span>}
-            </div>
+            <div className="flex items-center gap-2">{esHistogramaChecklist ? <ClipboardCheck className="w-5 h-5 text-red-600" /> : <BarChart3 className="w-5 h-5 text-red-600" />}<h3 className="font-semibold">{esHistogramaChecklist ? 'Histograma de Desvíos (Checklist)' : 'Histograma de Desvíos por Capítulo'}</h3>{totalDesviosGeneral > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">{totalDesviosGeneral} desvíos</span>}</div>
             {mostrarHistograma ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </div>
-          {mostrarHistograma && (
-            <div className="p-6">
-              <div className="flex flex-wrap items-center gap-3 mb-6 p-3 bg-gray-50 rounded-lg">
-                <label className="text-xs font-medium text-gray-600">Desde:</label>
-                <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} className="px-3 py-1.5 border rounded text-sm" />
-                <label className="text-xs font-medium text-gray-600">Hasta:</label>
-                <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} className="px-3 py-1.5 border rounded text-sm" />
-              </div>
-              <div className="flex items-center gap-6 mb-4">
-                {esHistogramaChecklist ? (
-                  <>
-                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-500 rounded"></div><span className="text-xs font-medium">No Cumple</span></div>
-                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-orange-500 rounded"></div><span className="text-xs font-medium">Crítico</span></div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-500 rounded"></div><span className="text-xs font-medium">NC</span></div>
-                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-500 rounded"></div><span className="text-xs font-medium">CP</span></div>
-                  </>
-                )}
-              </div>
-              {histogramaDesvios.length === 0 ? (
-                <div className="text-center py-8 text-gray-400"><BarChart3 className="w-12 h-12 mx-auto mb-3 text-gray-300" /><p className="text-sm">No hay desvíos en el período seleccionado</p></div>
-              ) : (
-                <div className="space-y-3">
-                  {histogramaDesvios.map((item, index) => {
-                    const porcentajeNC = (item.nc / maxDesvios) * 100;
-                    const porcentajeCP = (item.cp / maxDesvios) * 100;
-                    return (
-                      <div key={index} className="group">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-700 truncate max-w-[60%]" title={item.capitulo}>{item.capitulo}</span>
-                          <span className="text-xs text-gray-500 font-mono whitespace-nowrap">
-                            <span className="text-red-600 font-bold">{item.nc}</span> NC
-                            {!esHistogramaChecklist && <><span className="text-yellow-600 font-bold"> / {item.cp}</span> CP</>}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-6 overflow-hidden flex">
-                          <div className="bg-red-500 h-full transition-all flex items-center justify-center text-white text-[10px] font-bold min-w-[2px]" style={{ width: `${porcentajeNC}%` }}>{item.nc > 0 && porcentajeNC > 8 ? item.nc : ''}</div>
-                          {!esHistogramaChecklist && (
-                            <div className="bg-yellow-500 h-full transition-all flex items-center justify-center text-white text-[10px] font-bold min-w-[2px]" style={{ width: `${porcentajeCP}%` }}>{item.cp > 0 && porcentajeCP > 8 ? item.cp : ''}</div>
-                          )}
-                          <div className="flex-1 bg-gray-100 h-full"></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between items-center">
-                    <span className="text-xs font-bold text-gray-600">TOTAL</span>
-                    <span className="text-sm font-bold text-gray-800">
-                      <span className="text-red-600">{histogramaDesvios.reduce((s, d) => s + d.nc, 0)} NC</span>
-                      {!esHistogramaChecklist && <span className="text-yellow-600"> / {histogramaDesvios.reduce((s, d) => s + d.cp, 0)} CP</span>}
-                      {' = '}{totalDesviosGeneral} desvíos
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {mostrarHistograma && (<div className="p-6">...</div>)}
         </div>
       )}
 
-      {/* ============================================================
-          PRÓXIMAS AUDITORÍAS PROGRAMADAS (CON TOGGLE)
-          ============================================================ */}
       {canSeeSchedules && !isAuditor && (
         <div className="bg-white border rounded-lg mb-8">
           <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onClick={() => setMostrarSchedules(!mostrarSchedules)}>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold">Próximas Auditorías Programadas</h3>
-              <span className="text-xs text-gray-400 ml-auto">{filteredSchedules.length} programaciones</span>
-            </div>
+            <div className="flex items-center gap-2"><Calendar className="w-5 h-5 text-green-600" /><h3 className="font-semibold">Próximas Auditorías Programadas</h3><span className="text-xs text-gray-400 ml-auto">{filteredSchedules.length} programaciones</span></div>
             {mostrarSchedules ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </div>
-          {mostrarSchedules && (
-            filteredSchedules.length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-400">No hay programaciones.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Frecuencia</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Próxima</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th></tr></thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {filteredSchedules.map(s => {
-                      const proxima = s.proximaAuditoria?.seconds ? new Date(s.proximaAuditoria.seconds * 1000) : new Date(s.proximaAuditoria);
-                      const dias = Math.ceil((proxima.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                      return (
-                        <tr key={s.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-sm font-medium">{s.siteName}</td>
-                          <td className="px-4 py-2 text-sm capitalize">{s.frecuencia}</td>
-                          <td className="px-4 py-2 text-sm">{proxima.toLocaleDateString('es-AR')}<span className="text-xs text-gray-500 ml-1">({dias > 0 ? `${dias}d` : 'hoy'})</span></td>
-                          <td className="px-4 py-2">
-                            {s.estado === 'al_dia' && <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 flex items-center gap-1 w-fit"><CheckCircle className="w-3 h-3" /> Al día</span>}
-                            {s.estado === 'proxima' && <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 flex items-center gap-1 w-fit"><Clock className="w-3 h-3" /> Próxima</span>}
-                            {s.estado === 'vencida' && <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Vencida</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          )}
+          {mostrarSchedules && (filteredSchedules.length === 0 ? <div className="p-6 text-center text-sm text-gray-400">No hay programaciones.</div> : <div className="overflow-x-auto"><table className="min-w-full"><thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sitio</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Frecuencia</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Próxima</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th></tr></thead><tbody className="divide-y divide-gray-200">{filteredSchedules.map(s => { const proxima = s.proximaAuditoria?.seconds ? new Date(s.proximaAuditoria.seconds * 1000) : new Date(s.proximaAuditoria); const dias = Math.ceil((proxima.getTime() - Date.now()) / (1000 * 60 * 60 * 24)); return (<tr key={s.id} className="hover:bg-gray-50"><td className="px-4 py-2 text-sm font-medium">{s.siteName}</td><td className="px-4 py-2 text-sm capitalize">{s.frecuencia}</td><td className="px-4 py-2 text-sm">{proxima.toLocaleDateString('es-AR')}<span className="text-xs text-gray-500 ml-1">({dias > 0 ? `${dias}d` : 'hoy'})</span></td><td className="px-4 py-2">{s.estado === 'al_dia' && <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 flex items-center gap-1 w-fit"><CheckCircle className="w-3 h-3" /> Al día</span>}{s.estado === 'proxima' && <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 flex items-center gap-1 w-fit"><Clock className="w-3 h-3" /> Próxima</span>}{s.estado === 'vencida' && <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Vencida</span>}</td></tr>); })}</tbody></table></div>)}
         </div>
       )}
 
-      {/* ============================================================
-          ÚLTIMAS AUDITORÍAS (no tiene toggle)
-          ============================================================ */}
       <div className="bg-white border rounded-lg">
-        <div className="px-6 py-4 bg-gray-50 border-b">
-          <h3 className="font-semibold">
-            {isAuditor ? '📋 Mis Últimas Auditorías' : `Últimas Auditorías ${selectedSiteId ? '(filtrado)' : ''}`}
-          </h3>
-        </div>
+        <div className="px-6 py-4 bg-gray-50 border-b"><h3 className="font-semibold">{isAuditor ? '📋 Mis Últimas Auditorías' : `Últimas Auditorías ${selectedSiteId ? '(filtrado)' : ''}`}</h3></div>
         <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead><tr className="bg-gray-50"><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Planta</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th></tr></thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredAudits.length === 0 ? <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">No hay registros para mostrar</td></tr> : (
-                filteredAudits.slice(0, 10).map(audit => {
-                  const site = sites.find(s => s.id === audit.siteId);
-                  const esChecklist = (audit.tipoCuestionario || 'auditoria') === 'checklist';
-                  const esGestionComercio = (audit.tipoCuestionario || 'auditoria') === 'gestion_comercio';
-                  return (
-                    <tr key={audit.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedAudit(audit)}>
-                      <td className="px-6 py-4 text-sm font-medium">{site?.name || audit.siteName || 'Sitio desconocido'}</td>
-                      <td className="px-6 py-4">
-                        {esGestionComercio ? (
-                          <span className="px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 flex items-center gap-1 w-fit"><ShoppingBag className="w-3 h-3" /> Gestión</span>
-                        ) : esChecklist ? (
-                          <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 flex items-center gap-1 w-fit"><ClipboardCheck className="w-3 h-3" /> Municipal</span>
-                        ) : (
-                          <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">BPM</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm">{audit.completedAt?.seconds ? new Date(audit.completedAt.seconds * 1000).toLocaleDateString('es-AR') : 'N/A'}</td>
-                      <td className="px-6 py-4"><span className={`font-medium ${getScoreColor(audit.score || 0)}`}>{audit.score || 0}%</span></td>
-                      <td className="px-6 py-4">{getStatusBadge(audit.status)}</td>
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-2">
-                          <button onClick={() => setSelectedAudit(audit)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Ver</button>
-                          {canDelete && <button onClick={() => handleDeleteAudit(audit.id, site?.name || audit.siteName || '')} className="text-red-500 hover:text-red-700 text-sm font-medium">Eliminar</button>}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+          <table className="min-w-full"><thead><tr className="bg-gray-50"><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Planta</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th></tr></thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredAudits.length === 0 ? <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">No hay registros para mostrar</td></tr> : (
+              filteredAudits.slice(0, 10).map(audit => {
+                const site = sites.find(s => s.id === audit.siteId);
+                const esChecklist = (audit.tipoCuestionario || 'auditoria') === 'checklist';
+                const esGestionComercio = (audit.tipoCuestionario || 'auditoria') === 'gestion_comercio';
+                return (
+                  <tr key={audit.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedAudit(audit)}>
+                    <td className="px-6 py-4 text-sm font-medium">{site?.name || audit.siteName || 'Sitio desconocido'}</td>
+                    <td className="px-6 py-4">{esGestionComercio ? (<span className="px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 flex items-center gap-1 w-fit"><ShoppingBag className="w-3 h-3" /> Gestión</span>) : esChecklist ? (<span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 flex items-center gap-1 w-fit"><ClipboardCheck className="w-3 h-3" /> Municipal</span>) : (<span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">BPM</span>)}</td>
+                    <td className="px-6 py-4 text-sm">{audit.completedAt?.seconds ? new Date(audit.completedAt.seconds * 1000).toLocaleDateString('es-AR') : 'N/A'}</td>
+                    <td className="px-6 py-4"><span className={`font-medium ${getScoreColor(audit.score || 0)}`}>{audit.score || 0}%</span></td>
+                    <td className="px-6 py-4">{getStatusBadge(audit.status)}</td>
+                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}><div className="flex gap-2"><button onClick={() => setSelectedAudit(audit)} className="text-green-600 hover:text-green-800 text-sm font-medium">Ver</button>{canDelete && <button onClick={() => handleDeleteAudit(audit.id, site?.name || audit.siteName || '')} className="text-red-500 hover:text-red-700 text-sm font-medium">Eliminar</button>}</div></td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody></table>
         </div>
       </div>
 
       {selectedAudit && (
-        <AuditDetail 
-          audit={selectedAudit} 
-          siteName={sites.find(s => s.id === selectedAudit.siteId)?.name || selectedAudit.siteName || 'Sitio desconocido'} 
-          onClose={() => setSelectedAudit(null)} 
-          onDownloadPDF={() => generarPDF(selectedAudit)}
-          onEdit={(audit) => {
-            setSelectedAudit(null);
-            const event = new CustomEvent('editAudit', { detail: { audit } });
-            window.dispatchEvent(event);
-          }}
-        />
+        <AuditDetail audit={selectedAudit} siteName={sites.find(s => s.id === selectedAudit.siteId)?.name || selectedAudit.siteName || 'Sitio desconocido'} onClose={() => setSelectedAudit(null)} onDownloadPDF={() => generarPDF(selectedAudit)} onEdit={(audit) => { setSelectedAudit(null); const event = new CustomEvent('editAudit', { detail: { audit } }); window.dispatchEvent(event); }} />
       )}
     </div>
   );

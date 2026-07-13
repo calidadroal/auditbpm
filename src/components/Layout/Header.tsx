@@ -55,17 +55,16 @@ const Header: React.FC = () => {
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm px-4 py-3">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+            <div className="w-9 h-9 bg-green-600 rounded-lg flex items-center justify-center text-white">
               <ClipboardCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-sm font-black text-slate-950">AuditBPM Gastronomía</h1>
-              <p className="text-[10px] text-slate-400">Multi-Cuestionarios IRAM & SSO</p>
+              <h1 className="text-sm font-black text-slate-950">TodoEnRegla</h1>
+              <p className="text-[10px] text-slate-400">Auditorías y Gestión de Comercios</p>
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
-            {/* Campana de notificaciones */}
             <button
               onClick={() => {
                 const event = new CustomEvent('navigate', { detail: { tab: 'notificaciones' } });
@@ -84,12 +83,12 @@ const Header: React.FC = () => {
 
             {user && (
               <div className="relative">
-                <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-2 p-2 border rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors">
+                <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-2 p-2 border rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
                   <div className="text-left">
                     <span className="font-bold text-slate-800 text-xs block">{user.displayName}</span>
-                    <span className="text-[9px] uppercase font-extrabold text-blue-700">{getRoleLabel()}</span>
+                    <span className="text-[9px] uppercase font-extrabold text-green-700">{getRoleLabel()}</span>
                   </div>
-                  <User className="w-4 h-4 text-blue-600" />
+                  <User className="w-4 h-4 text-green-600" />
                 </button>
                 {showUserMenu && (
                   <>
@@ -101,7 +100,7 @@ const Header: React.FC = () => {
                       </div>
                       <div className="py-1">
                         <button onClick={handleChangePassword} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                          <Key className="w-4 h-4 text-blue-600" /> Cambiar Contraseña
+                          <Key className="w-4 h-4 text-green-600" /> Cambiar Contraseña
                         </button>
                         <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
                           <LogOut className="w-4 h-4" /> Cerrar Sesión

@@ -52,7 +52,7 @@ const AdminSolicitudes: React.FC = () => {
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {(['todas', 'pendiente', 'en_revision', 'aprobada', 'rechazada'] as const).map(f => (
-          <button key={f} onClick={() => setFiltro(f)} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${filtro === f ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+          <button key={f} onClick={() => setFiltro(f)} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${filtro === f ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
             {f === 'todas' ? 'Todas' : f.replace('_', ' ')} ({f === 'todas' ? solicitudes.length : solicitudes.filter(s => s.estado === f).length})
           </button>
         ))}
@@ -73,7 +73,7 @@ const AdminSolicitudes: React.FC = () => {
                   s.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
                   s.estado === 'aprobada' ? 'bg-green-100 text-green-800' :
                   s.estado === 'rechazada' ? 'bg-red-100 text-red-800' :
-                  'bg-blue-100 text-blue-800'
+                  'bg-green-100 text-green-800'
                 } flex items-center gap-1`}>
                   {s.estado === 'pendiente' && <Clock className="w-3 h-3" />}
                   {s.estado === 'aprobada' && <CheckCircle className="w-3 h-3" />}
@@ -89,14 +89,13 @@ const AdminSolicitudes: React.FC = () => {
                 <br />{s.createdAt?.seconds ? new Date(s.createdAt.seconds * 1000).toLocaleDateString('es-AR') : ''}
               </div>
 
-              {/* Chat/Respuesta */}
               {s.adminRespuesta ? (
                 <div className="p-3 bg-green-50 rounded-lg text-sm mb-3">
                   <p className="font-medium text-green-800">✅ Respuesta:</p>
                   <p className="text-green-700 mt-1">{s.adminRespuesta}</p>
                 </div>
               ) : respondiendo === s.id ? (
-                <div className="p-3 bg-blue-50 rounded-lg mb-3">
+                <div className="p-3 bg-green-50 rounded-lg mb-3">
                   <textarea value={respuesta} onChange={(e) => setRespuesta(e.target.value)} placeholder="Escribí tu respuesta..." className="w-full px-3 py-2 border rounded-lg text-sm h-20 mb-2" />
                   <div className="flex gap-2">
                     <button onClick={() => handleResponder(s.id)} className="px-3 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600 flex items-center gap-1"><Send className="w-3 h-3" /> Enviar</button>
@@ -105,13 +104,12 @@ const AdminSolicitudes: React.FC = () => {
                 </div>
               ) : null}
 
-              {/* Botones de acción - SIEMPRE visibles */}
               <div className="flex gap-2 flex-wrap">
                 {s.estado !== 'pendiente' && (
                   <button onClick={() => handleEstado(s.id, 'pendiente')} className="px-3 py-1.5 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">Pendiente</button>
                 )}
                 {s.estado !== 'en_revision' && (
-                  <button onClick={() => handleEstado(s.id, 'en_revision')} className="px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">En Revisión</button>
+                  <button onClick={() => handleEstado(s.id, 'en_revision')} className="px-3 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600">En Revisión</button>
                 )}
                 {s.estado !== 'aprobada' && (
                   <button onClick={() => setRespondiendo(s.id)} className="px-3 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600">Responder</button>

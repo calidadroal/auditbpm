@@ -26,7 +26,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, activeTab, onTabChange }) => {
               onClick={() => onTabChange(tb.id)}
               className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg border transition-all ${
                 isActive 
-                  ? 'bg-blue-600 text-white border-transparent' 
+                  ? 'bg-green-600 text-white border-transparent' 
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
