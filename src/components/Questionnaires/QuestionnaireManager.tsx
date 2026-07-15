@@ -29,6 +29,7 @@ const RIESGOS_MUNICIPALES: { value: NivelRiesgoMunicipal; label: string; color: 
 const TIPOS_PREGUNTA_GESTION: { value: TipoPreguntaGestion; label: string; icon: string }[] = [
   { value: 'texto', label: 'Texto abierto', icon: '📝' },
   { value: 'multiple_choice', label: 'Multiple choice', icon: '☑️' },
+  { value: 'checkbox', label: 'Selección múltiple', icon: '✅' },
   { value: 'numerica', label: 'Numérica', icon: '🔢' },
   { value: 'si_no', label: 'Sí / No', icon: '✅' },
   { value: 'foto', label: 'Foto', icon: '📸' },
@@ -61,6 +62,7 @@ const QuestionnaireManager: React.FC = () => {
   const [questions, setQuestions] = useState<QuestionnaireQuestion[]>([]);
   const [preguntasGestion, setPreguntasGestion] = useState<PreguntaGestion[]>([]);
   const [selectedSitios, setSelectedSitios] = useState<string[]>([]);
+  const [trialOnly, setTrialOnly] = useState(false);
 
   const [notificationEmails, setNotificationEmails] = useState('');
   const [notifyOnCritical, setNotifyOnCritical] = useState(true);
@@ -105,7 +107,7 @@ const QuestionnaireManager: React.FC = () => {
     setRequirePhotos(false); setMinimumTimeMinutes(0); setAllowPartialSave(false);
     setRequireLocation(false); setQuestions([]); setSectorizado(false); setTipoCuestionario('auditoria');
     setQrConfig({}); setSelectedSiteForQR({});
-    setPreguntasGestion([]); setSelectedSitios([]);
+    setPreguntasGestion([]); setSelectedSitios([]); setTrialOnly(false);
     setNotificationEmails(''); setNotifyOnCritical(true); setNotifyOnRecurrence(true);
     setNotifyOnScoreBelow(null); setEditingId(null);
   };
@@ -125,6 +127,7 @@ const QuestionnaireManager: React.FC = () => {
     setQrConfig(q.qrGroupsConfig || {});
     setPreguntasGestion((q as any).preguntasGestion || []);
     setSelectedSitios(q.sitioIds || []);
+    setTrialOnly((q as any).trialOnly === true);
     setNotificationEmails((q.notificationEmails || []).join(', '));
     setNotifyOnCritical(q.notifyOnCritical !== false);
     setNotifyOnRecurrence(q.notifyOnRecurrence !== false);
@@ -145,6 +148,7 @@ const QuestionnaireManager: React.FC = () => {
     setQrConfig(duplicated.qrGroupsConfig || {});
     setPreguntasGestion((duplicated as any).preguntasGestion || []);
     setSelectedSitios(duplicated.sitioIds || []);
+    setTrialOnly((duplicated as any).trialOnly === true);
     setNotificationEmails((duplicated.notificationEmails || []).join(', '));
     setNotifyOnCritical(duplicated.notifyOnCritical !== false);
     setNotifyOnRecurrence(duplicated.notifyOnRecurrence !== false);
@@ -190,7 +194,7 @@ const QuestionnaireManager: React.FC = () => {
   const updatePreguntaGestion = (index: number, updates: Partial<PreguntaGestion>) => {
     const updated = [...preguntasGestion];
     updated[index] = { ...updated[index], ...updates };
-    if (updates.tipo === 'multiple_choice' && !updated[index].opciones?.length) {
+    if ((updates.tipo === 'multiple_choice' || updates.tipo === 'checkbox') && !updated[index].opciones?.length) {
       updated[index].opciones = [
         { id: `op_${Date.now()}_1`, texto: '' },
         { id: `op_${Date.now()}_2`, texto: '' }
@@ -280,8 +284,8 @@ const QuestionnaireManager: React.FC = () => {
       if (preguntasGestion.length === 0) { alert('Debe agregar al menos una pregunta'); return; }
       for (const q of preguntasGestion) {
         if (!q.texto.trim()) { alert('Todas las preguntas deben tener texto'); return; }
-        if (q.tipo === 'multiple_choice' && (!q.opciones || q.opciones.filter(o => o.texto.trim()).length < 2)) {
-          alert(`La pregunta "${q.texto}" es multiple choice y necesita al menos 2 opciones con texto`);
+        if ((q.tipo === 'multiple_choice' || q.tipo === 'checkbox') && (!q.opciones || q.opciones.filter(o => o.texto.trim()).length < 2)) {
+          alert(`La pregunta "${q.texto}" es de selección y necesita al menos 2 opciones con texto`);
           return;
         }
       }
@@ -324,6 +328,7 @@ const QuestionnaireManager: React.FC = () => {
             orden: i
           })),
           sitioIds: selectedSitios,
+          trialOnly: trialOnly,
           sectorizado: false,
           qrGroups: [],
           qrGroupsConfig: {},
@@ -356,6 +361,7 @@ const QuestionnaireManager: React.FC = () => {
           requirePhotos, minimumTimeMinutes, allowPartialSave, requireLocation,
           questions: cleanQuestions,
           sitioIds: selectedSitios,
+          trialOnly: trialOnly,
           sectorizado: tipoCuestionario === 'checklist' ? false : (sectorizado || false),
           qrGroups: grupos,
           qrGroupsConfig: qrConfig,
@@ -460,7 +466,7 @@ const QuestionnaireManager: React.FC = () => {
 
           {esGestionComercio && (
             <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800">
-              🛍️ <strong>Gestión Comercio:</strong> Cuestionario flexible con preguntas de texto, multiple choice, numéricas, si/no, fotos y fechas. Ideal para auditorías comerciales.
+              🛍️ <strong>Gestión Comercio:</strong> Cuestionario flexible con preguntas de texto, multiple choice, selección múltiple, numéricas, si/no, fotos y fechas. Ideal para auditorías comerciales.
             </div>
           )}
 
@@ -487,6 +493,16 @@ const QuestionnaireManager: React.FC = () => {
                 <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
               </div>
             </div>
+
+            {isAdmin && (
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" checked={trialOnly} onChange={(e) => setTrialOnly(e.target.checked)} className="form-checkbox h-4 w-4 text-amber-600 rounded" />
+                  <span className="text-sm font-medium text-amber-800">🔒 Solo para usuarios Trial</span>
+                </label>
+                <p className="text-xs text-amber-600 mt-1">Si activás esto, solo los usuarios en período de prueba podrán ver y usar este cuestionario.</p>
+              </div>
+            )}
 
             {user?.role !== 'admin' && (
               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
@@ -596,9 +612,11 @@ const QuestionnaireManager: React.FC = () => {
                               <input type="text" value={pregunta.grupo || ''} onChange={(e) => updatePreguntaGestion(index, { grupo: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opcional" />
                             </div>
                           </div>
-                          {pregunta.tipo === 'multiple_choice' && (
+                          {(pregunta.tipo === 'multiple_choice' || pregunta.tipo === 'checkbox') && (
                             <div>
-                              <label className="block text-xs font-medium mb-1">Opciones</label>
+                              <label className="block text-xs font-medium mb-1">
+                                {pregunta.tipo === 'checkbox' ? 'Opciones (se puede seleccionar varias)' : 'Opciones'}
+                              </label>
                               {(pregunta.opciones || []).map((op, opIdx) => (
                                 <div key={op.id} className="flex gap-2 mb-1">
                                   <input type="text" value={op.texto} onChange={(e) => updateOpcion(index, opIdx, e.target.value)} className="flex-1 px-2 py-1 border rounded text-sm" placeholder={`Opción ${opIdx + 1}`} />
@@ -716,7 +734,12 @@ const QuestionnaireManager: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {questionnaires.map(q => (
                 <tr key={q.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3"><p className="font-medium text-sm">{q.name}</p></td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-sm">
+                      {q.name}
+                      {(q as any).trialOnly && <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">TRIAL</span>}
+                    </p>
+                  </td>
                   <td className="px-4 py-3">
                     {q.tipo === 'gestion_comercio' ? (
                       <span className="px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 flex items-center gap-1 w-fit"><ShoppingBag className="w-3 h-3" /> Gestión</span>

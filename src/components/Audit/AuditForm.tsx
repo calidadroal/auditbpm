@@ -9,6 +9,7 @@ import { calcularScore, clasificarRiesgo, getClasificacionLabel, getClasificacio
 import { generarPDF } from '../../utils/pdfGenerator';
 import QRScanner from '../QR/QRScanner';
 import type { AuditRecord, AuditResponse, RespuestaValor, RespuestaChecklist, CambioAuditoria, AuditHistorial, Geolocalizacion, PreguntaGestion, OfflineAudit } from '../../types';
+import { PLAN_STORAGE_DAYS } from '../../types';
 import { QrCode, Lock, Building2, ClipboardCheck, ShieldAlert, FileText, Edit3, MapPin, ShoppingBag, WifiOff, Upload, Save } from 'lucide-react';
 
 const OPCIONES: { value: RespuestaValor; label: string; color: string }[] = [
@@ -79,6 +80,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [respuestasGestion, setRespuestasGestion] = useState<Record<string, string>>({});
   const [respuestasSiNo, setRespuestasSiNo] = useState<Record<string, boolean | null>>({});
+  const [respuestasCheckbox, setRespuestasCheckbox] = useState<Record<string, string[]>>({});
 
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -134,12 +136,8 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
   };
 
   useEffect(() => {
-    if (!isEditing && !auditToEdit) {
-      capturarGeolocalizacion();
-    }
-    if (auditToEdit?.geolocalizacion) {
-      setGeolocalizacion(auditToEdit.geolocalizacion);
-    }
+    if (!isEditing && !auditToEdit) capturarGeolocalizacion();
+    if (auditToEdit?.geolocalizacion) setGeolocalizacion(auditToEdit.geolocalizacion);
   }, []);
 
   useEffect(() => {
@@ -199,6 +197,16 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
     setRespuestasSiNo(prev => ({ ...prev, [questionId]: valor }));
   };
 
+  const handleRespuestaCheckbox = (questionId: string, opcionTexto: string) => {
+    setRespuestasCheckbox(prev => {
+      const actuales = prev[questionId] || [];
+      if (actuales.includes(opcionTexto)) {
+        return { ...prev, [questionId]: actuales.filter(o => o !== opcionTexto) };
+      }
+      return { ...prev, [questionId]: [...actuales, opcionTexto] };
+    });
+  };
+
   const handleFileChange = async (questionId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files; if (!files || files.length === 0) return;
     setUploadingPhotos(prev => ({ ...prev, [questionId]: true })); setUploadProgress(prev => ({ ...prev, [questionId]: 0 }));
@@ -211,10 +219,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       
       if (!isOnline) {
         const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(fileComprimido);
-        });
+        const dataUrl = await new Promise<string>((resolve) => { reader.onload = () => resolve(reader.result as string); reader.readAsDataURL(fileComprimido); });
         setFotos(prev => ({ ...prev, [questionId]: [...(prev[questionId] || []), dataUrl] }));
       } else {
         const url = await uploadAuditPhoto(tempAuditId, questionId, fileComprimido, (progress) => { setUploadProgress(prev => ({ ...prev, [questionId]: progress })); });
@@ -245,13 +250,10 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         const errs: string[] = [];
         for (const q of preguntasGestion) {
           if (q.requerido) {
-            if (q.tipo === 'foto' && (!fotos[q.id] || fotos[q.id].length === 0)) {
-              errs.push(`Falta foto en: ${q.texto}`);
-            } else if (q.tipo === 'si_no' && respuestasSiNo[q.id] === undefined) {
-              errs.push(`Falta responder: ${q.texto}`);
-            } else if (q.tipo !== 'foto' && q.tipo !== 'si_no' && !respuestasGestion[q.id]?.trim()) {
-              errs.push(`Falta respuesta en: ${q.texto}`);
-            }
+            if (q.tipo === 'foto' && (!fotos[q.id] || fotos[q.id].length === 0)) errs.push(`Falta foto en: ${q.texto}`);
+            else if (q.tipo === 'si_no' && respuestasSiNo[q.id] === undefined) errs.push(`Falta responder: ${q.texto}`);
+            else if (q.tipo === 'checkbox' && (!respuestasCheckbox[q.id] || respuestasCheckbox[q.id].length === 0)) errs.push(`Seleccioná al menos una opción en: ${q.texto}`);
+            else if (q.tipo !== 'foto' && q.tipo !== 'si_no' && q.tipo !== 'checkbox' && !respuestasGestion[q.id]?.trim()) errs.push(`Falta respuesta en: ${q.texto}`);
           }
         }
         if (errs.length > 0) { setErrors(errs); return; }
@@ -272,49 +274,29 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       if (!isOnline && !isEditing) {
         const offlineAudit: OfflineAudit = {
           id: `offline_${Date.now()}`,
-          siteId: selectedSiteId,
-          siteName: selectedSite?.name || '',
-          questionnaireId: selectedQuestionnaireId,
-          questionnaireName: currentConfig.name,
+          siteId: selectedSiteId, siteName: selectedSite?.name || '',
+          questionnaireId: selectedQuestionnaireId, questionnaireName: currentConfig.name,
           tipoCuestionario: currentConfig.tipo || 'auditoria',
-          auditorId: user.uid,
-          auditorEmail: user.email || '',
-          auditorName: user.displayName || user.email || '',
+          auditorId: user.uid, auditorEmail: user.email || '', auditorName: user.displayName || user.email || '',
           respuestas: esGestionComercio
             ? preguntasGestion.map(q => ({
-                questionId: q.id,
-                questionText: q.texto,
-                valor: q.tipo === 'si_no' ? (respuestasSiNo[q.id] ? 'Sí' : 'No') : (respuestasGestion[q.id] || 'Sin respuesta'),
-                comentario: '',
-                photoURLs: fotos[q.id] || [],
-                tipoPregunta: q.tipo
+                questionId: q.id, questionText: q.texto,
+                valor: q.tipo === 'si_no' ? (respuestasSiNo[q.id] ? 'Sí' : 'No') :
+                       q.tipo === 'checkbox' ? (respuestasCheckbox[q.id] || []).join(', ') :
+                       (respuestasGestion[q.id] || 'Sin respuesta'),
+                comentario: '', photoURLs: fotos[q.id] || [], tipoPregunta: q.tipo
               }))
             : (currentConfig.questions || []).map(q => ({
-                questionId: q.id,
-                questionText: q.text,
-                valor: respuestas[q.id] || 'NA',
-                comentario: comentarios[q.id] || '',
-                photoURLs: fotos[q.id] || []
+                questionId: q.id, questionText: q.text,
+                valor: respuestas[q.id] || 'NA', comentario: comentarios[q.id] || '', photoURLs: fotos[q.id] || []
               })),
-          score: 100,
-          clasificacion: 'conforme',
-          startedAt: new Date(startTime).toISOString(),
-          completedAt: new Date().toISOString(),
-          geolocalizacion: geolocalizacion || null,
-          establecimiento: establecimiento || null,
-          observacionesGenerales: observacionesGenerales || '',
-          sincronizado: false,
-          createdAt: new Date().toISOString()
+          score: 100, clasificacion: 'conforme',
+          startedAt: new Date(startTime).toISOString(), completedAt: new Date().toISOString(),
+          geolocalizacion: geolocalizacion || null, establecimiento: establecimiento || null,
+          observacionesGenerales: observacionesGenerales || '', sincronizado: false, createdAt: new Date().toISOString()
         };
-
         saveAuditOffline(offlineAudit);
-        
-        setResultado({
-          id: offlineAudit.id,
-          ...offlineAudit,
-          offline: true,
-          pendingSync: true
-        });
+        setResultado({ id: offlineAudit.id, ...offlineAudit, offline: true, pendingSync: true });
         setSaving(false);
         return;
       }
@@ -328,28 +310,17 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
       if (esGestionComercio) {
         responses = preguntasGestion.map(q => {
           let valor: string;
-          if (q.tipo === 'si_no') {
-            valor = respuestasSiNo[q.id] ? 'Sí' : 'No';
-          } else if (q.tipo === 'foto') {
-            valor = (fotos[q.id] && fotos[q.id].length > 0) ? 'Con foto' : 'Sin foto';
-          } else {
-            valor = respuestasGestion[q.id] || 'Sin respuesta';
-          }
+          if (q.tipo === 'si_no') valor = respuestasSiNo[q.id] ? 'Sí' : 'No';
+          else if (q.tipo === 'checkbox') valor = (respuestasCheckbox[q.id] || []).join(', ');
+          else if (q.tipo === 'foto') valor = (fotos[q.id] && fotos[q.id].length > 0) ? 'Con foto' : 'Sin foto';
+          else valor = respuestasGestion[q.id] || 'Sin respuesta';
           
           return {
-            questionId: q.id,
-            questionText: q.texto,
-            questionType: q.tipo,
-            puntoNorma: q.grupo || 'General',
-            norma: currentConfig.norma || 'Gestión Comercio',
-            esCriticoInocuidad: false,
-            nivelDesvio: 'ninguno' as const,
-            valor: valor as any,
-            comentario: '',
-            photoURLs: fotos[q.id] || [],
-            responseTimeSeconds: 0,
-            startedAt: new Date(startTime),
-            completedAt: new Date()
+            questionId: q.id, questionText: q.texto, questionType: q.tipo,
+            puntoNorma: q.grupo || 'General', norma: currentConfig.norma || 'Gestión Comercio',
+            esCriticoInocuidad: false, nivelDesvio: 'ninguno' as const,
+            valor: valor as any, comentario: '', photoURLs: fotos[q.id] || [],
+            responseTimeSeconds: 0, startedAt: new Date(startTime), completedAt: new Date()
           };
         });
 
@@ -357,24 +328,22 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         const total = responses.length;
         scoreData = {
           score: total > 0 ? Math.round((cumplen / total) * 100 * 10) / 10 : 100,
-          totalAplicables: total,
-          totalCumplen: cumplen,
-          totalCumplenParcial: 0,
-          totalNoCumplen: total - cumplen,
-          totalNoAplica: 0,
-          criticosNC: 0
+          totalAplicables: total, totalCumplen: cumplen, totalCumplenParcial: 0,
+          totalNoCumplen: total - cumplen, totalNoAplica: 0, criticosNC: 0
         };
         clasificacion = scoreData.score >= 90 ? 'conforme' : scoreData.score >= 81 ? 'a_mejorar' : 'riesgo_alto';
       } else {
         const questions = currentConfig.questions || [];
         responses = questions.map(q => ({
-          questionId: q.id, questionText: q.text, questionType: q.type || 'C/NC', puntoNorma: q.puntoNorma, norma: q.norma || currentConfig.norma || '',
-          esCriticoInocuidad: q.esCriticoInocuidad || false, nivelDesvio: q.nivelDesvio || 'ninguno', nivelRiesgoMunicipal: q.nivelRiesgoMunicipal || null,
-          valor: respuestas[q.id] || (esChecklist ? 'NO_CUMPLE' : 'NA'), comentario: comentarios[q.id] || '', photoURLs: fotos[q.id] || [],
+          questionId: q.id, questionText: q.text, questionType: q.type || 'C/NC',
+          puntoNorma: q.puntoNorma, norma: q.norma || currentConfig.norma || '',
+          esCriticoInocuidad: q.esCriticoInocuidad || false, nivelDesvio: q.nivelDesvio || 'ninguno',
+          nivelRiesgoMunicipal: q.nivelRiesgoMunicipal || null,
+          valor: respuestas[q.id] || (esChecklist ? 'NO_CUMPLE' : 'NA'),
+          comentario: comentarios[q.id] || '', photoURLs: fotos[q.id] || [],
           responseTimeSeconds: questionStartTimes[q.id] ? Math.floor((Date.now() - questionStartTimes[q.id]) / 1000) : 0,
           startedAt: new Date(questionStartTimes[q.id] || Date.now()), completedAt: new Date()
         }));
-
         if (esChecklist) { scoreData = calcularScoreChecklist(responses); clasificacion = clasificarRiesgoChecklist(scoreData.score, scoreData.criticosNC); }
         else { scoreData = calcularScore(responses); clasificacion = clasificarRiesgo(scoreData.score, scoreData.criticosNC); }
       }
@@ -383,9 +352,9 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         siteId: selectedSiteId, siteName: selectedSite.name, questionnaireId: selectedQuestionnaireId,
         questionnaireName: currentConfig.name, norma: currentConfig.norma || '', auditorId: user.uid,
         auditorEmail: user.email || '', auditorName: user.displayName || user.email || '',
-        tipoCuestionario: currentConfig.tipo || 'auditoria', observacionesGenerales: observacionesGenerales.trim() || null,
-        establecimiento: establecimiento.trim() || null,
-        geolocalizacion: geolocalizacion || null,
+        tipoCuestionario: currentConfig.tipo || 'auditoria',
+        observacionesGenerales: observacionesGenerales.trim() || null,
+        establecimiento: establecimiento.trim() || null, geolocalizacion: geolocalizacion || null,
         responses, score: scoreData.score, totalAplicables: scoreData.totalAplicables,
         totalCumplen: scoreData.totalCumplen, totalCumplenParcial: scoreData.totalCumplenParcial || 0,
         totalNoCumplen: scoreData.totalNoCumplen, totalNoAplica: scoreData.totalNoAplica || 0,
@@ -444,7 +413,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
           <h2 className="text-2xl font-bold mb-4">
             {resultado.offline ? '📱 Auditoría Guardada (Offline)' : resultado.parcial ? '💾 Auditoría Guardada (Parcial)' : resultado.editado ? '✏️ Auditoría Editada' : '✅ Auditoría Guardada'}
           </h2>
-          
           {resultado.offline ? (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
               <WifiOff className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
@@ -466,7 +434,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
               {resultado.editado && <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4"><p className="text-sm text-purple-700">📝 Los cambios se guardaron y quedaron registrados en el historial.</p></div>}
             </>
           )}
-          
           {resultado.geolocalizacion && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-green-700">📍 Ubicación registrada: <a href={`https://www.google.com/maps?q=${resultado.geolocalizacion.lat},${resultado.geolocalizacion.lng}`} target="_blank" rel="noopener noreferrer" className="underline font-bold">Ver en Google Maps</a></p>
@@ -474,12 +441,11 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
             </div>
           )}
           {resultado.establecimiento && <p className="text-sm text-gray-600 mb-2">🏫 Establecimiento: <strong>{resultado.establecimiento}</strong></p>}
-          
           <div className="flex justify-center gap-3 mt-4">
             {!resultado.offline && !resultado.parcial && (
               <button onClick={() => generarPDF(resultado as AuditRecord)} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">📄 Descargar PDF</button>
             )}
-            <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setRespuestasGestion({}); setRespuestasSiNo({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Nuevo Control</button>
+            <button onClick={() => { setResultado(null); setSelectedSiteId(''); setSelectedQuestionnaireId(''); setObservacionesGenerales(''); setEstablecimiento(''); setRespuestas({}); setComentarios({}); setFotos({}); setRespuestasGestion({}); setRespuestasSiNo({}); setRespuestasCheckbox({}); setSelectedSector(null); setQrValidated(false); setValidatedGroups([]); setGeolocalizacion(null); if (onEditComplete) onEditComplete(); }} className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Nuevo Control</button>
           </div>
         </div>
       </div>
@@ -492,26 +458,16 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         {isEditing && <button onClick={onCancelEdit} className="text-gray-500 hover:text-gray-700 text-sm underline">← Cancelar edición</button>}
         <h2 className="text-2xl font-bold">
           {isEditing ? `✏️ Editando: ${auditToEdit?.questionnaireName}` : 
-           esGestionComercio ? '🛍️ Nueva Gestión Comercio' :
-           esChecklist ? 'Nuevo Checklist Municipal' : 'Nueva Auditoría'}
+           esGestionComercio ? '🛍️ Nueva Gestión Comercio' : esChecklist ? 'Nuevo Checklist Municipal' : 'Nueva Auditoría'}
         </h2>
       </div>
       {isEditing && <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700"><Edit3 className="w-4 h-4 inline mr-1" />Modo edición: los cambios se guardarán en el historial.</div>}
-
       {!isOnline && !isEditing && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
-          <WifiOff className="w-4 h-4" />
-          Modo offline - La auditoría se guardará en el dispositivo y se sincronizará al volver la conexión
-        </div>
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2"><WifiOff className="w-4 h-4" />Modo offline - La auditoría se guardará en el dispositivo y se sincronizará al volver la conexión</div>
       )}
-
       {permitirGuardadoParcial && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
-          <Save className="w-4 h-4" />
-          Guardado parcial habilitado - Podés guardar y continuar después
-        </div>
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2"><Save className="w-4 h-4" />Guardado parcial habilitado - Podés guardar y continuar después</div>
       )}
-
       <div className="mb-4 p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-sm">
         <span>⏱ Tiempo: <strong>{formatTime(currentTime)}</strong></span>
         {currentConfig?.minimumTimeMinutes > 0 && !esGestionComercio && <span className="text-yellow-600">Mínimo: {currentConfig.minimumTimeMinutes} min</span>}
@@ -523,7 +479,6 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         {esChecklist && <span className="text-red-600 flex items-center gap-1"><ClipboardCheck className="w-4 h-4" /> Municipal</span>}
         {esGestionComercio && <span className="text-emerald-600 flex items-center gap-1"><ShoppingBag className="w-4 h-4" /> Gestión Comercio</span>}
       </div>
-
       {errors.length > 0 && (<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"><ul className="list-disc list-inside text-sm text-red-600">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></div>)}
       {qrError && (<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{qrError}</div>)}
 
@@ -532,70 +487,29 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
           <div><label className="block text-sm font-medium mb-1">Sitio *</label><select value={selectedSiteId} onChange={(e) => setSelectedSiteId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar sitio...</option>{sites.filter(s => s.active !== false).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
           <div><label className="block text-sm font-medium mb-1">Cuestionario *</label><select value={selectedQuestionnaireId} onChange={(e) => setSelectedQuestionnaireId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required disabled={isEditing}><option value="">Seleccionar cuestionario...</option>{questionnaires.filter(q => q.active !== false).map(q => <option key={q.id} value={q.id}>{q.name} ({q.norma}) {q.tipo === 'gestion_comercio' ? '🛍️ Gestión' : q.tipo === 'checklist' ? '🏛️ Municipal' : q.sectorizado ? '🏢 Sectorizado' : ''}</option>)}</select></div>
         </div>
-
         <div><label className="block text-sm font-medium mb-1 flex items-center gap-1"><MapPin className="w-4 h-4 text-gray-500" /> Establecimiento (opcional)</label><input type="text" value={establecimiento} onChange={(e) => setEstablecimiento(e.target.value)} placeholder="Ej: Escuela N° 234, Salón Norte, etc." className="w-full px-3 py-2 border rounded-lg text-sm" /><p className="text-xs text-gray-400 mt-1">Identificá el establecimiento específico dentro del sitio genérico.</p></div>
-
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <MapPin className="w-5 h-5 text-green-600" />
-            <h3 className="font-bold text-green-800 text-sm">📍 Ubicación actual</h3>
-            {geolocalizacion && (
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full ml-auto">✅ Capturada</span>
-            )}
-          </div>
-          
-          {geoLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-500 border-t-transparent"></div>
-              <p className="text-sm text-green-600">Obteniendo ubicación...</p>
-            </div>
-          ) : geolocalizacion ? (
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-green-700">✅ Ubicación registrada</span>
-                <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-green-500 underline hover:text-green-700 ml-auto">🔄 Reintentar</button>
-              </div>
-              <p className="text-xs text-green-500 mt-1 font-mono">
-                {geolocalizacion.lat.toFixed(6)}, {geolocalizacion.lng.toFixed(6)}
-                {geolocalizacion.precision && ` (±${Math.round(geolocalizacion.precision)}m)`}
-              </p>
-              {mapsUrl && (
-                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-green-600 underline hover:text-green-800 mt-1 inline-block">
-                  🗺️ Ver en Google Maps
-                </a>
-              )}
-            </div>
-          ) : geoError ? (
-            <div>
-              <p className="text-sm text-red-600">{geoError}</p>
-              <button type="button" onClick={capturarGeolocalizacion} className="text-xs text-green-600 underline hover:text-green-800 mt-1">🔄 Reintentar</button>
-            </div>
-          ) : (
-            <button type="button" onClick={capturarGeolocalizacion} className="px-3 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors">
-              📍 Obtener ubicación
-            </button>
-          )}
+          <div className="flex items-center gap-2 mb-2"><MapPin className="w-5 h-5 text-green-600" /><h3 className="font-bold text-green-800 text-sm">📍 Ubicación actual</h3>{geolocalizacion && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full ml-auto">✅ Capturada</span>}</div>
+          {geoLoading ? (<div className="flex items-center gap-2"><div className="animate-spin rounded-full h-4 w-4 border-2 border-green-500 border-t-transparent"></div><p className="text-sm text-green-600">Obteniendo ubicación...</p></div>)
+          : geolocalizacion ? (<div><div className="flex items-center gap-2"><span className="text-sm text-green-700">✅ Ubicación registrada</span><button type="button" onClick={capturarGeolocalizacion} className="text-xs text-green-500 underline hover:text-green-700 ml-auto">🔄 Reintentar</button></div><p className="text-xs text-green-500 mt-1 font-mono">{geolocalizacion.lat.toFixed(6)}, {geolocalizacion.lng.toFixed(6)}{geolocalizacion.precision && ` (±${Math.round(geolocalizacion.precision)}m)`}</p>{mapsUrl && <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-green-600 underline hover:text-green-800 mt-1 inline-block">🗺️ Ver en Google Maps</a>}</div>)
+          : geoError ? (<div><p className="text-sm text-red-600">{geoError}</p><button type="button" onClick={capturarGeolocalizacion} className="text-xs text-green-600 underline hover:text-green-800 mt-1">🔄 Reintentar</button></div>)
+          : (<button type="button" onClick={capturarGeolocalizacion} className="px-3 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors">📍 Obtener ubicación</button>)}
         </div>
-
         <div><label className="block text-sm font-medium mb-1 flex items-center gap-1"><FileText className="w-4 h-4 text-gray-500" /> Observaciones generales</label><textarea value={observacionesGenerales} onChange={(e) => setObservacionesGenerales(e.target.value)} placeholder="Observaciones vinculadas al sitio (opcional)..." className="w-full px-3 py-2 border rounded-lg text-sm resize-none" rows={3} /></div>
 
         {!isEditing && currentConfig?.requireQR && !currentConfig.sectorizado && !qrValidated && !esGestionComercio && (
           <div className="border-2 border-orange-300 bg-orange-50 rounded-lg p-4"><div className="flex items-center gap-2 mb-3"><Lock className="w-5 h-5 text-orange-600" /><h3 className="font-bold text-orange-800">Validación QR Requerida</h3></div><p className="text-sm text-orange-700 mb-3">Escanee el código QR del sector antes de comenzar.</p><QRScanner required={true} onScanSuccess={() => handleQRScanSuccess()} /></div>
         )}
-
         {!isEditing && currentConfig?.sectorizado && grupoActual && !esGestionComercio && (
           <div className="border-2 border-purple-300 bg-purple-50 rounded-lg p-4"><div className="flex items-center gap-2 mb-3"><Building2 className="w-5 h-5 text-purple-600" /><h3 className="font-bold text-purple-800">QR Sector: {grupoActual}</h3></div><p className="text-sm text-purple-700 mb-3">Escaneá el QR del sector <strong>{grupoActual}</strong> para habilitar sus preguntas.</p><QRScanner required={true} onScanSuccess={handleQRScanSuccess} /><div className="mt-2 text-xs text-purple-600">Sectores completados: {validatedGroups.join(', ') || 'Ninguno'}</div></div>
         )}
-
         {currentConfig?.requireQR && !currentConfig.sectorizado && qrValidated && selectedSector && !esGestionComercio && (
           <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2"><QrCode className="w-5 h-5 text-green-600" /><div><p className="font-medium text-green-800 text-sm">✅ QR Validado</p><p className="text-xs text-green-600">Sector: <strong>{selectedSector.name}</strong></p></div></div>
         )}
 
         {esGestionComercio && preguntasGestion.length > 0 && (
           <div className="space-y-4 border-t pt-4">
-            <h3 className="font-semibold text-emerald-800 flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5" /> Preguntas del cuestionario
-            </h3>
+            <h3 className="font-semibold text-emerald-800 flex items-center gap-2"><ShoppingBag className="w-5 h-5" /> Preguntas del cuestionario</h3>
             {preguntasGestion.sort((a, b) => a.orden - b.orden).map((pregunta) => (
               <div key={pregunta.id} className="border rounded-lg p-4 bg-white">
                 <div className="flex justify-between items-start mb-2">
@@ -604,6 +518,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                     <p className="text-xs text-gray-500">
                       Tipo: {pregunta.tipo === 'texto' ? '📝 Texto' : 
                              pregunta.tipo === 'multiple_choice' ? '☑️ Multiple choice' :
+                             pregunta.tipo === 'checkbox' ? '✅ Selección múltiple' :
                              pregunta.tipo === 'numerica' ? '🔢 Numérica' :
                              pregunta.tipo === 'si_no' ? '✅ Sí/No' :
                              pregunta.tipo === 'foto' ? '📸 Foto' : '📅 Fecha'}
@@ -613,97 +528,56 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                   {pregunta.grupo && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">{pregunta.grupo}</span>}
                 </div>
                 {pregunta.instrucciones && <p className="text-xs text-gray-400 italic mb-2">📋 {pregunta.instrucciones}</p>}
-                
                 <div className="mt-2">
                   {pregunta.tipo === 'texto' && (
-                    <textarea
-                      value={respuestasGestion[pregunta.id] || ''}
-                      onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)}
-                      placeholder="Escribir respuesta..."
-                      className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
-                      rows={3}
-                    />
+                    <textarea value={respuestasGestion[pregunta.id] || ''} onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)} placeholder="Escribir respuesta..." className="w-full px-3 py-2 border rounded-lg text-sm resize-none" rows={3} />
                   )}
-                  
                   {pregunta.tipo === 'multiple_choice' && (
                     <div className="space-y-1">
                       {(pregunta.opciones || []).map(opcion => (
                         <label key={opcion.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`mc_${pregunta.id}`}
-                            checked={respuestasGestion[pregunta.id] === opcion.texto}
-                            onChange={() => handleRespuestaGestion(pregunta.id, opcion.texto)}
-                            className="form-radio h-4 w-4 text-emerald-600"
-                          />
+                          <input type="radio" name={`mc_${pregunta.id}`} checked={respuestasGestion[pregunta.id] === opcion.texto} onChange={() => handleRespuestaGestion(pregunta.id, opcion.texto)} className="form-radio h-4 w-4 text-emerald-600" />
                           <span className="text-sm">{opcion.texto}</span>
                         </label>
                       ))}
                     </div>
                   )}
-                  
-                  {pregunta.tipo === 'numerica' && (
-                    <input
-                      type="number"
-                      value={respuestasGestion[pregunta.id] || ''}
-                      onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)}
-                      placeholder="Ingresar número..."
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                    />
-                  )}
-                  
-                  {pregunta.tipo === 'si_no' && (
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleRespuestaSiNo(pregunta.id, true)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${respuestasSiNo[pregunta.id] === true ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                      >
-                        ✅ Sí
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRespuestaSiNo(pregunta.id, false)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${respuestasSiNo[pregunta.id] === false ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                      >
-                        ❌ No
-                      </button>
+                  {pregunta.tipo === 'checkbox' && (
+                    <div className="space-y-1">
+                      {(pregunta.opciones || []).map(opcion => (
+                        <label key={opcion.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <input type="checkbox" checked={(respuestasCheckbox[pregunta.id] || []).includes(opcion.texto)} onChange={() => handleRespuestaCheckbox(pregunta.id, opcion.texto)} className="form-checkbox h-4 w-4 text-emerald-600 rounded" />
+                          <span className="text-sm">{opcion.texto}</span>
+                        </label>
+                      ))}
                     </div>
                   )}
-                  
-                  {pregunta.tipo === 'fecha' && (
-                    <input
-                      type="date"
-                      value={respuestasGestion[pregunta.id] || ''}
-                      onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                    />
+                  {pregunta.tipo === 'numerica' && (
+                    <input type="number" value={respuestasGestion[pregunta.id] || ''} onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)} placeholder="Ingresar número..." className="w-full px-3 py-2 border rounded-lg text-sm" />
                   )}
-                  
+                  {pregunta.tipo === 'si_no' && (
+                    <div className="flex gap-3">
+                      <button type="button" onClick={() => handleRespuestaSiNo(pregunta.id, true)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${respuestasSiNo[pregunta.id] === true ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>✅ Sí</button>
+                      <button type="button" onClick={() => handleRespuestaSiNo(pregunta.id, false)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${respuestasSiNo[pregunta.id] === false ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>❌ No</button>
+                    </div>
+                  )}
+                  {pregunta.tipo === 'fecha' && (
+                    <input type="date" value={respuestasGestion[pregunta.id] || ''} onChange={(e) => handleRespuestaGestion(pregunta.id, e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                  )}
                   {pregunta.tipo === 'foto' && (
                     <div>
                       <div className="flex gap-2 flex-wrap">
-                        <button type="button" onClick={() => handleFileSelect(pregunta.id)} disabled={uploadingPhotos[pregunta.id]}
-                          className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300"
-                        >📸 Subir foto {pregunta.requerido ? '(*)' : ''}</button>
-                        <button type="button" onClick={() => handleAddFotoUrl(pregunta.id)}
-                          className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                        >🔗 URL</button>
+                        <button type="button" onClick={() => handleFileSelect(pregunta.id)} disabled={uploadingPhotos[pregunta.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {pregunta.requerido ? '(*)' : ''}</button>
+                        <button type="button" onClick={() => handleAddFotoUrl(pregunta.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button>
                       </div>
-                      <input ref={(el) => { fileInputRefs.current[pregunta.id] = el; }} type="file" accept="image/*" capture="environment"
-                        onChange={(e) => handleFileChange(pregunta.id, e)} className="hidden"
-                      />
+                      {user && (
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          Las fotos se conservan por {PLAN_STORAGE_DAYS[(user as any)?.plan] || PLAN_STORAGE_DAYS['basico']} días
+                        </p>
+                      )}
+                      <input ref={(el) => { fileInputRefs.current[pregunta.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(pregunta.id, e)} className="hidden" />
                       {fotos[pregunta.id] && fotos[pregunta.id].length > 0 && (
-                        <div className="flex gap-2 mt-2 flex-wrap">
-                          {fotos[pregunta.id].map((url, i) => (
-                            <div key={i} className="relative group">
-                              <img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" />
-                              <button type="button" onClick={() => handleRemoveFoto(pregunta.id, i)}
-                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                              >✕</button>
-                            </div>
-                          ))}
-                        </div>
+                        <div className="flex gap-2 mt-2 flex-wrap">{fotos[pregunta.id].map((url, i) => (<div key={i} className="relative group"><img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" /><button type="button" onClick={() => handleRemoveFoto(pregunta.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button></div>))}</div>
                       )}
                     </div>
                   )}
@@ -724,10 +598,13 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                       <div className="flex justify-between items-start mb-2"><div><p className="font-medium text-sm">{q.text}</p><p className="text-xs text-gray-500">{q.norma || currentConfig.norma} - {q.puntoNorma}</p>{q.esCriticoInocuidad && <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">🚨 Crítico</span>}</div></div>
                       {q.instructions && <p className="text-xs text-gray-400 italic mb-2">📋 {q.instructions}</p>}
                       <div className="flex flex-wrap gap-2 mb-2">{OPCIONES.map(op => (<button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }} className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{op.label}</button>))}</div>
-                      <div className="space-y-2">
-                        <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} />
-                        <div><div className="flex gap-2 flex-wrap"><button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button><button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button></div><input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />{fotos[q.id] && fotos[q.id].length > 0 && (<div className="flex gap-2 mt-2 flex-wrap">{fotos[q.id].map((url, i) => (<div key={i} className="relative group"><img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" /><button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button></div>))}</div>)}</div>
-                      </div>
+                      <div className="space-y-2"><input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} /><div><div className="flex gap-2 flex-wrap"><button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button><button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button></div>
+                      {user && (
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          Las fotos se conservan por {PLAN_STORAGE_DAYS[(user as any)?.plan] || PLAN_STORAGE_DAYS['basico']} días
+                        </p>
+                      )}
+                      <input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />{fotos[q.id] && fotos[q.id].length > 0 && (<div className="flex gap-2 mt-2 flex-wrap">{fotos[q.id].map((url, i) => (<div key={i} className="relative group"><img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" /><button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button></div>))}</div>)}</div></div>
                     </div>
                   ))}
                 </div>
@@ -737,55 +614,23 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
                 <div key={q.id} className={`border rounded-lg p-4 bg-white ${esChecklist && q.nivelRiesgoMunicipal ? RIESGO_COLORS[q.nivelRiesgoMunicipal] + ' border-l-4' : ''}`}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{q.text}</p>
-                        {esChecklist && q.nivelRiesgoMunicipal && (
-                          <span className={`text-xs font-bold ${q.nivelRiesgoMunicipal === 'critico' ? 'text-red-600' : q.nivelRiesgoMunicipal === 'medio' ? 'text-yellow-600' : 'text-green-600'}`}>
-                            {RIESGO_LABELS[q.nivelRiesgoMunicipal]}
-                          </span>
-                        )}
-                      </div>
+                      <div className="flex items-center gap-2"><p className="font-medium text-sm">{q.text}</p>{esChecklist && q.nivelRiesgoMunicipal && (<span className={`text-xs font-bold ${q.nivelRiesgoMunicipal === 'critico' ? 'text-red-600' : q.nivelRiesgoMunicipal === 'medio' ? 'text-yellow-600' : 'text-green-600'}`}>{RIESGO_LABELS[q.nivelRiesgoMunicipal]}</span>)}</div>
                       <p className="text-xs text-gray-500">{q.norma || currentConfig.norma} - {q.puntoNorma}</p>
-                      {q.esCriticoInocuidad && !esChecklist && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">🚨 Crítico</span>
-                      )}
+                      {q.esCriticoInocuidad && !esChecklist && (<span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">🚨 Crítico</span>)}
                     </div>
                   </div>
                   {q.instructions && <p className="text-xs text-gray-400 italic mb-2">📋 {q.instructions}</p>}
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {esChecklist
-                      ? OPCIONES_CHECKLIST.map(op => (
-                          <button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }}
-                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
-                          >{op.label}</button>
-                        ))
-                      : OPCIONES.map(op => (
-                          <button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }}
-                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
-                          >{op.label}</button>
-                        ))
-                    }
+                    {esChecklist ? OPCIONES_CHECKLIST.map(op => (<button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }} className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{op.label}</button>))
+                    : OPCIONES.map(op => (<button key={op.value} type="button" onClick={() => { handleStartQuestion(q.id); handleRespuesta(q.id, op.value); }} className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${respuestas[q.id] === op.value ? op.color + ' ring-2 ring-offset-1' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{op.label}</button>))}
                   </div>
-                  <div className="space-y-2">
-                    <input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} />
-                    <div>
-                      <div className="flex gap-2 flex-wrap">
-                        <button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button>
-                        <button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button>
-                      </div>
-                      <input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />
-                      {fotos[q.id] && fotos[q.id].length > 0 && (
-                        <div className="flex gap-2 mt-2 flex-wrap">
-                          {fotos[q.id].map((url, i) => (
-                            <div key={i} className="relative group">
-                              <img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" />
-                              <button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <div className="space-y-2"><input type="text" value={comentarios[q.id] || ''} onChange={(e) => handleComentario(q.id, e.target.value)} placeholder={q.requireComment ? 'Comentario obligatorio *' : 'Comentario (opcional)'} className={`w-full px-4 py-2 border rounded-lg text-sm ${q.requireComment && !comentarios[q.id]?.trim() ? 'border-red-300' : ''}`} /><div><div className="flex gap-2 flex-wrap"><button type="button" onClick={() => handleFileSelect(q.id)} disabled={uploadingPhotos[q.id]} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300">📸 Subir foto {q.requirePhoto ? '(*)' : ''}</button><button type="button" onClick={() => handleAddFotoUrl(q.id)} className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">🔗 URL</button></div>
+                  {user && (
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Las fotos se conservan por {PLAN_STORAGE_DAYS[(user as any)?.plan] || PLAN_STORAGE_DAYS['basico']} días
+                    </p>
+                  )}
+                  <input ref={(el) => { fileInputRefs.current[q.id] = el; }} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(q.id, e)} className="hidden" />{fotos[q.id] && fotos[q.id].length > 0 && (<div className="flex gap-2 mt-2 flex-wrap">{fotos[q.id].map((url, i) => (<div key={i} className="relative group"><img src={url} alt={`Foto ${i+1}`} className="h-20 w-20 object-cover rounded border" /><button type="button" onClick={() => handleRemoveFoto(q.id, i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button></div>))}</div>)}</div></div>
                 </div>
               ))
             )}
@@ -795,9 +640,7 @@ const AuditForm: React.FC<AuditFormProps> = ({ auditToEdit, onCancelEdit, onEdit
         <div className="flex space-x-3 pt-4 border-t">
           {isEditing && <button type="button" onClick={onCancelEdit} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">Cancelar</button>}
           {permitirGuardadoParcial && (
-            <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={saving} className="px-6 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium flex items-center gap-2">
-              <Save className="w-4 h-4" /> Guardar y continuar después
-            </button>
+            <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={saving} className="px-6 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium flex items-center gap-2"><Save className="w-4 h-4" /> Guardar y continuar después</button>
           )}
           <button type="submit" disabled={saving} className="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-green-300 font-medium">
             {saving ? 'Guardando...' : isEditing ? '💾 Guardar Cambios' : isOnline ? 'Finalizar' : '📱 Guardar en dispositivo'}

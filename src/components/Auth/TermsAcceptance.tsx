@@ -53,16 +53,16 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-2xl">
         <div className="text-center mb-8">
-          <Shield className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-black text-slate-900">AuditBPM</h1>
+          <Shield className="w-16 h-16 text-green-600 mx-auto mb-4" />
+          <h1 className="text-3xl font-black text-slate-900">TodoEnRegla</h1>
           <p className="text-sm text-slate-500 mt-2">
             Aceptación de Términos de Uso
           </p>
         </div>
 
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>📋 Para continuar usando AuditBPM,</strong> debes leer y aceptar nuestros Términos de Uso.
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm text-green-700">
+            <strong>📋 Para continuar usando TodoEnRegla,</strong> debes leer y aceptar nuestros Términos de Uso.
           </p>
         </div>
 
@@ -77,7 +77,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
             
             <h4 className="font-semibold mt-4">1. Licencia de Uso</h4>
             <p className="text-gray-700 text-sm">
-              AuditBPM te otorga una licencia limitada, personal, no exclusiva e intransferible para utilizar la aplicación exclusivamente para tu uso interno o el de tu organización. Esta licencia NO implica la transferencia de la propiedad del software.
+              TodoEnRegla te otorga una licencia limitada, personal, no exclusiva e intransferible para utilizar la aplicación exclusivamente para tu uso interno o el de tu organización. Esta licencia NO implica la transferencia de la propiedad del software.
             </p>
 
             <h4 className="font-semibold mt-4">2. Restricciones</h4>
@@ -87,7 +87,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
 
             <h4 className="font-semibold mt-4">3. Modelo de Pago</h4>
             <p className="text-gray-700 text-sm">
-              AuditBPM opera bajo un modelo de suscripción. El acceso se proporciona mediante un período de prueba gratuito de 7 días. Al finalizar, el usuario deberá abonar las tarifas correspondientes al plan seleccionado. Los cobros se realizan de forma automática.
+              TodoEnRegla opera bajo un modelo de suscripción. El acceso se proporciona mediante un período de prueba gratuito de 7 días. Al finalizar, el usuario deberá abonar las tarifas correspondientes al plan seleccionado. Los cobros se realizan de forma automática.
             </p>
 
             <h4 className="font-semibold mt-4">4. Limitación de Responsabilidad</h4>
@@ -102,7 +102,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
 
             <h4 className="font-semibold mt-4">6. Terminación</h4>
             <p className="text-gray-700 text-sm">
-              AuditBPM se reserva el derecho de suspender o cancelar tu acceso en cualquier momento si violas estos términos o realizas actividades fraudulentas.
+              TodoEnRegla se reserva el derecho de suspender o cancelar tu acceso en cualquier momento si violas estos términos o realizas actividades fraudulentas.
             </p>
 
             <h4 className="font-semibold mt-4">7. Jurisdicción</h4>
@@ -114,7 +114,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
             <p className="text-gray-700 text-sm">
               Si tenes preguntas sobre estos términos, contactanos en:
               <br />
-              <strong>contacto@auditbpm.com</strong>
+              <strong>todoenregla.app@gmail.com</strong>
             </p>
 
             <p className="text-sm text-gray-500 mt-4 italic">
@@ -131,7 +131,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
             <button
               type="button"
               onClick={handleMarkAsRead}
-              className="text-xs text-blue-600 hover:text-blue-800 underline font-medium"
+              className="text-xs text-green-600 hover:text-green-800 underline font-medium"
             >
               ✅ Ya leí todo
             </button>
@@ -147,7 +147,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
                 setAcepta(e.target.checked);
                 if (error) setError('');
               }}
-              className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="mt-1 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
               disabled={!scrolledToEnd}
             />
             <span className="text-sm text-gray-700">
@@ -155,7 +155,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
               <a 
                 href="/terminos.html" 
                 target="_blank" 
-                className="text-blue-600 hover:underline font-medium"
+                className="text-green-600 hover:underline font-medium"
               >
                 Términos de Uso
               </a>
@@ -175,7 +175,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccept }) => {
             className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
               loading || !acepta || !scrolledToEnd
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-green-600 text-white hover:bg-green-700'
             }`}
           >
             {loading ? (

@@ -9,6 +9,8 @@ export interface QRCardData {
   instructions?: string;
 }
 
+const LOGO_URL = '/logo.png';
+
 export const generarQRPDF = async (data: QRCardData): Promise<void> => {
   const { siteName, sectorName, qrToken, instructions } = data;
 
@@ -65,6 +67,12 @@ export const generarQRPDF = async (data: QRCardData): Promise<void> => {
   const qrX = centerX - qrSize / 2;
   const qrY = 85;
   pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
+
+  // Logo en el centro del QR
+  const logoSize = 22;
+  const logoX = qrX + (qrSize - logoSize) / 2;
+  const logoY = qrY + (qrSize - logoSize) / 2;
+  pdf.addImage(LOGO_URL, 'PNG', logoX, logoY, logoSize, logoSize);
 
   pdf.setFontSize(9);
   pdf.setTextColor(150, 150, 150);
@@ -148,6 +156,11 @@ export const generarQRMultiplesPDF = async (
     pdf.text(card.sectorName, centerCardX, y + 6, { align: 'center' });
 
     pdf.addImage(qrDataURL, 'PNG', centerCardX - qrSize / 2, y + 10, qrSize, qrSize);
+
+    const logoSize = 6;
+    const logoX = centerCardX - qrSize / 2 + (qrSize - logoSize) / 2;
+    const logoY = y + 10 + (qrSize - logoSize) / 2;
+    pdf.addImage(LOGO_URL, 'PNG', logoX, logoY, logoSize, logoSize);
 
     pdf.setFontSize(6);
     pdf.setTextColor(100, 100, 100);

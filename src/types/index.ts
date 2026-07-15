@@ -391,7 +391,7 @@ export interface AuditHistorial {
 // ETAPA 1: OFFLINE + GESTIÓN COMERCIO + ALERTAS
 // ============================================================
 
-export type TipoPreguntaGestion = 'texto' | 'multiple_choice' | 'numerica' | 'si_no' | 'foto' | 'fecha';
+export type TipoPreguntaGestion = 'texto' | 'multiple_choice' | 'checkbox' | 'numerica' | 'si_no' | 'foto' | 'fecha';
 
 export interface OpcionMultipleChoice {
   id: string;
@@ -539,3 +539,13 @@ export interface HistorialEstado {
   timestamp: any;
   origen: 'cron' | 'admin_manual';
 }
+
+// ============================================================
+// ETAPA 5: ALMACENAMIENTO DE FOTOS POR PLAN
+// ============================================================
+
+export const PLAN_STORAGE_DAYS: Record<string, number> = {
+  'trial': 1,
+  'basico': 3,
+  'premium': 30,
+};

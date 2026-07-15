@@ -65,6 +65,13 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
+// IDs de cuestionarios trial
+const TRIAL_QUESTIONNAIRES = [
+  'h8eUdPSqEPIY6RH4bJaa', // Checklist Municipal Prueba
+  'x8sYQMlGObLxyBb3pSM5', // Local de Prueba
+  'SAT1NTkAr0ftEoRMiFnO', // Cuestionario BPM Prueba
+];
+
 function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -589,14 +596,34 @@ export const createTrialUser = async (nombre: string, email: string, password: s
     isTrial: true
   } as any);
 
+  // Asignar los 3 cuestionarios trial al sitio
+  try {
+    for (const qId of TRIAL_QUESTIONNAIRES) {
+      const qRef = doc(db, 'questionnaires', qId);
+      const qSnap = await getDoc(qRef);
+      if (qSnap.exists()) {
+        const qData = qSnap.data();
+        const sitiosActuales = qData.sitioIds || [];
+        if (!sitiosActuales.includes(siteId)) {
+          await updateDoc(qRef, { sitioIds: [...sitiosActuales, siteId], updatedAt: serverTimestamp() });
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error asignando cuestionarios trial:', e);
+  }
+
   await setDoc(doc(db, 'users', uid), {
     uid,
     email,
     role: 'auditor',
     displayName: nombre,
     assignedSites: [siteId],
+    assignedQuestionnaires: TRIAL_QUESTIONNAIRES,
     active: true,
+    isTrial: true,
     trialEndsAt,
+    plan: 'trial',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });

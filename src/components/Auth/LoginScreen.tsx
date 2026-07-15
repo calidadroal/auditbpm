@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Shield, AlertTriangle } from 'lucide-react';
-import { resetUserPassword } from '../../firebase';
+import { resetUserPassword, createTrialUser } from '../../firebase';
 
 const LoginScreen: React.FC = () => {
   const { login, register, trialExpired } = useAuth();
@@ -13,6 +13,7 @@ const LoginScreen: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
+  const [displayName, setDisplayName] = useState('');
   
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [errorTerminos, setErrorTerminos] = useState('');
@@ -28,13 +29,21 @@ const LoginScreen: React.FC = () => {
       return;
     }
     
+    if (isRegister && !displayName.trim()) {
+      setError('Ingresá tu nombre para crear la cuenta.');
+      return;
+    }
+    
     setLoading(true);
     try {
       if (isRegister) {
-        await register(email, password);
-        setSuccess('✅ Usuario registrado correctamente. Revisa tu email para confirmar.');
+        await createTrialUser(displayName.trim(), email, password);
+        setSuccess('✅ Usuario registrado correctamente. Ya podés iniciar sesión.');
         setIsRegister(false);
         setAceptaTerminos(false);
+        setDisplayName('');
+        setEmail('');
+        setPassword('');
       } else {
         await login(email, password);
       }
@@ -124,6 +133,12 @@ const LoginScreen: React.FC = () => {
           </form>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isRegister && (
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Nombre</label>
+                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none" placeholder="Tu nombre" required />
+              </div>
+            )}
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Email</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 h-10 px-3 mt-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none" placeholder="usuario@ejemplo.com" required />
@@ -187,6 +202,7 @@ const LoginScreen: React.FC = () => {
                   setSuccess('');
                   setErrorTerminos('');
                   setAceptaTerminos(false);
+                  setDisplayName('');
                 }} 
                 className="text-sm text-green-600 font-bold hover:underline block w-full"
               >

@@ -45,11 +45,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userSnap = await getDoc(userRef);
     
     if (!userSnap.exists()) {
+      // El documento NO existe - solo pasa si createTrialUser falló
       await setDoc(userRef, {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
         displayName: firebaseUser.displayName || firebaseUser.email || '',
-        role: 'lector',
+        role: 'auditor',
         assignedSites: [],
         assignedQuestionnaires: [],
         active: true,
@@ -62,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Documento de usuario creado desde acceptTerms');
+      console.log('✅ Documento de usuario creado desde acceptTerms (fallback)');
     } else {
       await updateDoc(userRef, {
         termsAccepted: true,
@@ -81,13 +82,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         termsAcceptedAt: new Date().toISOString()
       });
     } else {
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const data = userSnap.data();
+      const refreshedSnap = await getDoc(userRef);
+      if (refreshedSnap.exists()) {
+        const data = refreshedSnap.data();
         const appUser: User = {
           uid: firebaseUser.uid,
           email: data.email || firebaseUser.email || '',
-          role: data.role || 'lector',
+          role: data.role || 'auditor',
           displayName: data.displayName || data.name || firebaseUser.email || '',
           assignedSites: data.assignedSites || [],
           active: data.active !== false,
@@ -121,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (userSnap.exists()) {
             const data = userSnap.data();
-            const role: UserRole = ROLES_VALIDOS.includes(data.role) ? data.role : 'lector';
+            const role: UserRole = ROLES_VALIDOS.includes(data.role) ? data.role : 'auditor';
             
             if (data.trialEndsAt) {
               const expired = await checkTrialExpired(fbUser.uid);
@@ -165,29 +166,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             console.log('Usuario cargado:', appUser.role, appUser.email);
             if (appUser.trialEndsAt) console.log('Trial: quedan', trialDaysLeft, 'dias');
-            console.log('Términos aceptados:', appUser.termsAccepted, 'Versión:', appUser.termsVersion);
             
-            // ============================================================
-            // ETAPA 4: VERIFICAR ESTADO DE PAGO (SOLO GESTORES)
-            // ============================================================
             if (appUser.role === 'gestor' && appUser.empresaId) {
               try {
                 const empresaSnap = await getDoc(doc(db, 'empresas', appUser.empresaId));
                 if (empresaSnap.exists()) {
                   const empresaData = empresaSnap.data();
                   if (empresaData.estadoPago === 'suspendido') {
-                    console.warn('🔴 Empresa suspendida por falta de pago:', appUser.empresaId);
+                    console.warn('🔴 Empresa suspendida:', appUser.empresaId);
                     setUser(null);
                     setNeedTermsAcceptance(false);
                     setLoading(false);
                     window.location.href = '/cuenta-suspendida';
                     return;
                   }
-                  console.log('✅ Estado de pago:', empresaData.estadoPago);
                 }
               } catch (err) {
                 console.error('Error verificando estado de pago:', err);
-                // No bloqueamos el acceso si hay error de conexión
               }
             }
             
@@ -196,10 +191,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (appUser.active && navigator.onLine) {
               syncOfflineAudits().then(result => {
                 if (result.sincronizados > 0) {
-                  console.log(`[Offline] Se sincronizaron ${result.sincronizados} auditorías pendientes`);
+                  console.log(`[Offline] ${result.sincronizados} auditorías sincronizadas`);
                 }
               }).catch(err => {
-                console.error('[Offline] Error en sincronización automática:', err);
+                console.error('[Offline] Error:', err);
               });
             }
             
@@ -210,53 +205,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             
           } else {
-            console.log('Usuario en Auth pero no en Firestore. Creando documento...');
-            await setDoc(userRef, {
-              uid: fbUser.uid,
-              email: fbUser.email || '',
-              displayName: fbUser.displayName || fbUser.email || '',
-              role: 'lector',
-              assignedSites: [],
-              assignedQuestionnaires: [],
-              active: true,
-              isTrial: true,
-              trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-              plan: 'trial',
-              termsAccepted: false,
-              termsVersion: '',
-              termsAcceptedAt: null,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            });
-            console.log('✅ Usuario creado automáticamente en Firestore');
-            
-            const newUserSnap = await getDoc(userRef);
-            if (newUserSnap.exists()) {
-              const data = newUserSnap.data();
-              const role: UserRole = ROLES_VALIDOS.includes(data.role) ? data.role : 'lector';
-              const appUser: User = {
-                uid: fbUser.uid,
-                email: data.email || fbUser.email || '',
-                role: role,
-                displayName: data.displayName || data.name || fbUser.email || '',
-                assignedSites: data.assignedSites || [],
-                active: data.active !== false,
-                trialEndsAt: data.trialEndsAt || null,
-                permisosOverride: data.permisosOverride || {},
-                overrideActivo: data.overrideActivo || false,
-                permisosActualizadosPor: data.permisosActualizadosPor || null,
-                permisosActualizadosEn: data.permisosActualizadosEn || null,
-                fechaVencimientoOverrides: data.fechaVencimientoOverrides || null,
-                empresaId: data.empresaId || null,
-                createdAt: data.createdAt,
-                updatedAt: data.updatedAt,
-                termsAccepted: data.termsAccepted || false,
-                termsVersion: data.termsVersion || '',
-                termsAcceptedAt: data.termsAcceptedAt || null
-              };
-              setUser(appUser);
-              setNeedTermsAcceptance(true);
-            }
+            // Documento no existe en Firestore - crear solo si no hay otro proceso que ya lo hizo
+            console.log('Usuario en Auth sin documento en Firestore - esperando a createTrialUser...');
+            setUser(null);
+            setNeedTermsAcceptance(false);
           }
         } catch (error) {
           console.error('Error cargando datos del usuario:', error);

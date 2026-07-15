@@ -7,3 +7,6 @@
 
 [functions."checkFacturacion"]
   schedule = "0 0 * * *"
+
+[functions."cleanStorage"]
+  schedule = "0 1 * * *"

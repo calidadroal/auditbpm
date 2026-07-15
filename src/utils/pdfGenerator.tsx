@@ -3,7 +3,7 @@
 // PDF GENERATOR - TodoEnRegla
 // ============================================================
 
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFName, PDFString } from 'pdf-lib';
 import type { AuditRecord } from '../types';
 import {
   calcularScore,
@@ -13,6 +13,8 @@ import {
   calcularScoreChecklist,
   clasificarRiesgoChecklist,
 } from './auditUtils';
+
+const LOGO_URL = '/logo.png';
 
 interface PdfContext {
   page: any;
@@ -59,6 +61,7 @@ interface Spacing {
   small: number;
   commentLine: number;
   box: number;
+  fotoHeight: number;
 }
 
 function createColors(): StyleColors {
@@ -95,6 +98,7 @@ function createSpacing(): Spacing {
     small: 4,
     commentLine: 10,
     box: 8,
+    fotoHeight: 60,
   };
 }
 
@@ -144,17 +148,6 @@ function drawParagraph(ctx: PdfContext, lines: string[], x: number, fontSize: nu
   return lines.length * lh;
 }
 
-function drawParagraphBold(ctx: PdfContext, lines: string[], x: number, fontSize: number, color: ReturnType<typeof rgb>, customLineHeight?: number): number {
-  const lh = customLineHeight ?? ctx.spacing.lineHeight;
-  let cy = ctx.cursorY;
-  for (const line of lines) {
-    ctx.page.drawText(line, { x, y: cy, size: fontSize, font: ctx.boldFont, color });
-    cy -= lh;
-  }
-  ctx.cursorY = cy;
-  return lines.length * lh;
-}
-
 function ensureSpace(ctx: PdfContext, height: number): void {
   if (ctx.cursorY - height < ctx.marginBottom) {
     newPage(ctx);
@@ -168,113 +161,44 @@ function newPage(ctx: PdfContext, tituloSeccion?: string): void {
   drawHeader(ctx);
   drawFooter(ctx);
   if (tituloSeccion) {
-    ctx.page.drawText(tituloSeccion, {
-      x: ctx.marginLeft,
-      y: ctx.cursorY,
-      size: 11,
-      font: ctx.boldFont,
-      color: ctx.colors.secundario,
-    });
+    ctx.page.drawText(tituloSeccion, { x: ctx.marginLeft, y: ctx.cursorY, size: 11, font: ctx.boldFont, color: ctx.colors.secundario });
     ctx.cursorY -= ctx.spacing.section;
   }
 }
 
-function drawHeader(ctx: PdfContext): void {
+async function drawHeader(ctx: PdfContext): Promise<void> {
   const headerHeight = 68;
-  ctx.page.drawRectangle({
-    x: 0,
-    y: ctx.pageHeight - headerHeight,
-    width: ctx.pageWidth,
-    height: headerHeight,
-    color: ctx.colors.principal,
-  });
+  ctx.page.drawRectangle({ x: 0, y: ctx.pageHeight - headerHeight, width: ctx.pageWidth, height: headerHeight, color: ctx.colors.principal });
+
+  try {
+    const logoBytes = await fetch(LOGO_URL).then(r => r.arrayBuffer());
+    const logoImage = await (ctx as any).doc.embedPng(logoBytes);
+   const logoDims = logoImage.scale(0.05);
+ctx.page.drawImage(logoImage, { x: ctx.marginLeft, y: ctx.pageHeight - 52, width: logoDims.width, height: logoDims.height });
+  } catch (e) {}
 
   const titulo = (ctx as any).esChecklist ? 'CHECKLIST MUNICIPAL' : 'INFORME DE AUDITORIA';
-  const subtitulo = (ctx as any).esChecklist
-    ? 'Control Interno - Evaluacion de Riesgo de Clausura'
-    : 'Sistema de Gestion de Calidad - TodoEnRegla';
+  const subtitulo = (ctx as any).esChecklist ? 'Control Interno - Evaluacion de Riesgo de Clausura' : 'Sistema de Gestion de Calidad - TodoEnRegla';
   const fecha = (ctx as any).fecha;
   const auditor = (ctx as any).audit.auditorName || (ctx as any).audit.auditorEmail || 'N/D';
 
-  const tituloWidth = ctx.boldFont.widthOfTextAtSize(titulo, 14);
-  const xTitulo = (ctx.pageWidth - tituloWidth) / 2;
-  ctx.page.drawText(titulo, {
-    x: xTitulo,
-    y: ctx.pageHeight - 36,
-    size: 14,
-    font: ctx.boldFont,
-    color: ctx.colors.blanco,
-  });
-
-  const subtituloWidth = ctx.font.widthOfTextAtSize(subtitulo, 8);
-  const xSubtitulo = (ctx.pageWidth - subtituloWidth) / 2;
-  ctx.page.drawText(subtitulo, {
-    x: xSubtitulo,
-    y: ctx.pageHeight - 50,
-    size: 8,
-    font: ctx.font,
-    color: ctx.colors.blanco,
-  });
-
-  ctx.page.drawText(`Fecha: ${fecha}`, {
-    x: ctx.marginLeft,
-    y: ctx.pageHeight - 62,
-    size: 7,
-    font: ctx.font,
-    color: ctx.colors.blanco,
-  });
-
-  ctx.page.drawText(`Auditor: ${auditor}`, {
-    x: ctx.marginLeft + 120,
-    y: ctx.pageHeight - 62,
-    size: 7,
-    font: ctx.font,
-    color: ctx.colors.blanco,
-  });
+  ctx.page.drawText(titulo, { x: (ctx.pageWidth - ctx.boldFont.widthOfTextAtSize(titulo, 14)) / 2, y: ctx.pageHeight - 36, size: 14, font: ctx.boldFont, color: ctx.colors.blanco });
+  ctx.page.drawText(subtitulo, { x: (ctx.pageWidth - ctx.font.widthOfTextAtSize(subtitulo, 8)) / 2, y: ctx.pageHeight - 50, size: 8, font: ctx.font, color: ctx.colors.blanco });
+  ctx.page.drawText(`Fecha: ${fecha}`, { x: ctx.marginLeft + 50, y: ctx.pageHeight - 62, size: 7, font: ctx.font, color: ctx.colors.blanco });
+  ctx.page.drawText(`Auditor: ${auditor}`, { x: ctx.marginLeft + 170, y: ctx.pageHeight - 62, size: 7, font: ctx.font, color: ctx.colors.blanco });
 }
 
 function drawFooter(ctx: PdfContext): void {
-  ctx.page.drawLine({
-    start: { x: ctx.marginLeft, y: 50 },
-    end: { x: ctx.pageWidth - ctx.marginRight, y: 50 },
-    thickness: 0.2,
-    color: ctx.colors.separador,
-  });
-
-  ctx.page.drawText(`TodoEnRegla - Generado el ${new Date().toLocaleDateString('es-AR')}`, {
-    x: ctx.marginLeft,
-    y: 40,
-    size: 7,
-    font: ctx.font,
-    color: ctx.colors.norma,
-  });
-
-  ctx.page.drawText(`www.todoenregla.com.ar`, {
-    x: ctx.marginLeft + 160,
-    y: 40,
-    size: 7,
-    font: ctx.font,
-    color: ctx.colors.principal,
-  });
-
-  ctx.page.drawText(`Pagina ${ctx.pageNumber}`, {
-    x: ctx.pageWidth - ctx.marginRight,
-    y: 40,
-    size: 7,
-    font: ctx.font,
-    color: ctx.colors.norma,
-  });
+  ctx.page.drawLine({ start: { x: ctx.marginLeft, y: 50 }, end: { x: ctx.pageWidth - ctx.marginRight, y: 50 }, thickness: 0.2, color: ctx.colors.separador });
+  ctx.page.drawText(`TodoEnRegla - Generado el ${new Date().toLocaleDateString('es-AR')}`, { x: ctx.marginLeft, y: 40, size: 7, font: ctx.font, color: ctx.colors.norma });
+  ctx.page.drawText(`www.todoenregla.com.ar`, { x: ctx.marginLeft + 160, y: 40, size: 7, font: ctx.font, color: ctx.colors.principal });
+  ctx.page.drawText(`Pagina ${ctx.pageNumber}`, { x: ctx.pageWidth - ctx.marginRight, y: 40, size: 7, font: ctx.font, color: ctx.colors.norma });
 }
 
 function drawSectionTitle(ctx: PdfContext, texto: string): void {
   ctx.page.drawText(texto, { x: ctx.marginLeft, y: ctx.cursorY, size: 13, font: ctx.boldFont, color: ctx.colors.secundario });
   ctx.cursorY -= ctx.spacing.section;
-  ctx.page.drawLine({
-    start: { x: ctx.marginLeft, y: ctx.cursorY },
-    end: { x: ctx.marginLeft + 80, y: ctx.cursorY },
-    thickness: 0.5,
-    color: ctx.colors.principal,
-  });
+  ctx.page.drawLine({ start: { x: ctx.marginLeft, y: ctx.cursorY }, end: { x: ctx.marginLeft + 80, y: ctx.cursorY }, thickness: 0.5, color: ctx.colors.principal });
   ctx.cursorY -= ctx.spacing.section;
 }
 
@@ -284,29 +208,18 @@ function drawInfoRow(ctx: PdfContext, label: string, value: string): void {
 }
 
 function drawColoredBox(ctx: PdfContext, height: number, color: ReturnType<typeof rgb>, text: string, fontSize: number, textColor: ReturnType<typeof rgb>, xOffset: number = 5, yOffset: number = 4): void {
-  ctx.page.drawRectangle({
-    x: ctx.marginLeft,
-    y: ctx.cursorY - height,
-    width: ctx.contentWidth,
-    height: height,
-    color,
-  });
+  ctx.page.drawRectangle({ x: ctx.marginLeft, y: ctx.cursorY - height, width: ctx.contentWidth, height: height, color });
   ctx.page.drawText(text, { x: ctx.marginLeft + xOffset, y: ctx.cursorY - yOffset, size: fontSize, font: ctx.font, color: textColor });
   ctx.cursorY -= height + ctx.spacing.padding;
 }
 
 function drawProgressBar(ctx: PdfContext, score: number): void {
-  const barWidth = ctx.contentWidth;
-  const barHeight = 6;
-  const barX = ctx.marginLeft;
-  const barY = ctx.cursorY - ctx.spacing.small;
+  const barWidth = ctx.contentWidth, barHeight = 6, barX = ctx.marginLeft, barY = ctx.cursorY - ctx.spacing.small;
   const scoreClamped = Math.min(100, Math.max(0, score));
   const fillWidth = (scoreClamped / 100) * barWidth;
-
   let barColor = ctx.colors.cumple;
   if (scoreClamped < 81) barColor = ctx.colors.parcial;
   if (scoreClamped < 70) barColor = ctx.colors.noCumple;
-
   ctx.page.drawRectangle({ x: barX, y: barY, width: barWidth, height: barHeight, color: rgb(0.92, 0.92, 0.92) });
   ctx.page.drawRectangle({ x: barX, y: barY, width: fillWidth, height: barHeight, color: barColor });
   ctx.cursorY -= ctx.spacing.section + ctx.spacing.small;
@@ -315,23 +228,12 @@ function drawProgressBar(ctx: PdfContext, score: number): void {
 function drawResultBox(ctx: PdfContext, clasifLabel: string, clasificacion: string): number {
   const cColor = clasificacion === 'riesgo_alto' ? ctx.colors.riesgoAlto : clasificacion === 'a_mejorar' ? ctx.colors.parcial : ctx.colors.cumple;
   const lines = splitTextToSize(clasifLabel, ctx.boldFont, 12, ctx.contentWidth - 20);
-  const lineH = ctx.spacing.section;
-  const textHeight = lines.length * lineH;
-  const boxHeight = textHeight + ctx.spacing.box * 2;
-
+  const lineH = ctx.spacing.section, textHeight = lines.length * lineH, boxHeight = textHeight + ctx.spacing.box * 2;
   ensureSpace(ctx, boxHeight);
-  ctx.page.drawRectangle({
-    x: ctx.marginLeft,
-    y: ctx.cursorY - boxHeight,
-    width: ctx.contentWidth,
-    height: boxHeight,
-    color: cColor,
-  });
-
+  ctx.page.drawRectangle({ x: ctx.marginLeft, y: ctx.cursorY - boxHeight, width: ctx.contentWidth, height: boxHeight, color: cColor });
   let cy = ctx.cursorY - (boxHeight - textHeight) / 2 - ctx.spacing.small;
   for (const line of lines) {
-    const lineWidth = ctx.boldFont.widthOfTextAtSize(line, 12);
-    const xCentered = ctx.marginLeft + (ctx.contentWidth - lineWidth) / 2;
+    const xCentered = ctx.marginLeft + (ctx.contentWidth - ctx.boldFont.widthOfTextAtSize(line, 12)) / 2;
     ctx.page.drawText(line, { x: xCentered, y: cy, size: 12, font: ctx.boldFont, color: ctx.colors.blanco });
     cy -= lineH;
   }
@@ -345,110 +247,94 @@ function drawSummaryItem(ctx: PdfContext, label: string, value: number, color: R
   ctx.cursorY -= ctx.spacing.section;
 }
 
-function drawQuestionBlock(ctx: PdfContext, response: any, index: number, auditNorma: string): number {
+async function drawQuestionBlock(ctx: PdfContext, response: any, index: number, auditNorma: string): Promise<number> {
   const preguntaTexto = normalizarTexto(response.questionText);
   const normaTexto = normalizarTexto(`${response.norma || auditNorma} ${response.puntoNorma ? `- ${response.puntoNorma}` : ''}`);
   const comentarioTexto = response.comentario ? normalizarTexto(`Comentario: ${response.comentario}`) : '';
   const lineasPregunta = splitTextToSize(preguntaTexto, ctx.font, 8, ctx.contentWidth - 20);
   const lineasComentario = comentarioTexto ? splitTextToSize(comentarioTexto, ctx.font, 7, ctx.contentWidth - 20) : [];
-  const totalHeight = ctx.spacing.headerHeight + (lineasPregunta.length * ctx.spacing.lineHeight) + ctx.spacing.section + (lineasComentario.length * ctx.spacing.commentLine) + ctx.spacing.box * 2 + ctx.spacing.small;
+  const photos = response.photoURLs || [];
+  const fotosPorFila = 3;
+  const filasFotos = Math.ceil(photos.length / fotosPorFila);
+  const alturaFotos = photos.length > 0 ? filasFotos * ctx.spacing.fotoHeight + ctx.spacing.padding : 0;
+  const totalHeight = ctx.spacing.headerHeight + (lineasPregunta.length * ctx.spacing.lineHeight) + ctx.spacing.section + (lineasComentario.length * ctx.spacing.commentLine) + alturaFotos + ctx.spacing.box * 2 + ctx.spacing.small;
 
   ensureSpace(ctx, totalHeight);
 
-  let bgColor = ctx.colors.blanco;
-  let resultText = 'NO APLICA';
-  let resultColor = ctx.colors.noAplica;
+  let bgColor = ctx.colors.blanco, resultText = 'NO APLICA', resultColor = ctx.colors.noAplica;
   if (response.valor === 'C' || response.valor === 'CUMPLE') { bgColor = ctx.colors.cumpleBg; resultText = 'CUMPLE'; resultColor = ctx.colors.cumple; }
   else if (response.valor === 'CP') { bgColor = ctx.colors.parcialBg; resultText = 'PARCIAL'; resultColor = ctx.colors.parcial; }
   else if (response.valor === 'NC' || response.valor === 'NO_CUMPLE') { bgColor = ctx.colors.noCumpleBg; resultText = 'NO CUMPLE'; resultColor = ctx.colors.noCumple; }
 
-  ctx.page.drawRectangle({
-    x: ctx.marginLeft, y: ctx.cursorY - totalHeight,
-    width: ctx.contentWidth, height: totalHeight,
-    color: bgColor, borderColor: ctx.colors.separador, borderWidth: 0.5,
-  });
+  ctx.page.drawRectangle({ x: ctx.marginLeft, y: ctx.cursorY - totalHeight, width: ctx.contentWidth, height: totalHeight, color: bgColor, borderColor: ctx.colors.separador, borderWidth: 0.5 });
 
   let y2 = ctx.cursorY - ctx.spacing.box;
   ctx.page.drawText(`Pregunta ${index + 1}`, { x: ctx.marginLeft + 10, y: y2, size: 9, font: ctx.boldFont, color: ctx.colors.secundario });
   ctx.page.drawText(resultText, { x: ctx.marginLeft + ctx.contentWidth - 90, y: y2, size: 8, font: ctx.boldFont, color: resultColor });
   y2 -= ctx.spacing.section;
-
   ctx.cursorY = y2;
   drawParagraph(ctx, lineasPregunta, ctx.marginLeft + 10, 8, ctx.colors.pregunta);
   y2 = ctx.cursorY - ctx.spacing.small;
-
   ctx.page.drawText(normaTexto, { x: ctx.marginLeft + 10, y: y2, size: 6.5, font: ctx.font, color: ctx.colors.norma });
   y2 -= ctx.spacing.section;
 
   if (lineasComentario.length > 0) {
     ctx.cursorY = y2;
     drawParagraph(ctx, lineasComentario, ctx.marginLeft + 10, 7, ctx.colors.comentarioTexto, ctx.spacing.commentLine);
+    y2 = ctx.cursorY;
   }
 
-  ctx.cursorY = ctx.cursorY - totalHeight - ctx.spacing.padding + ctx.spacing.box;
+  if (photos.length > 0) {
+    const fotoWidth = (ctx.contentWidth - 40) / fotosPorFila;
+    let fotoX = ctx.marginLeft + 10, fotoY = y2 - ctx.spacing.padding;
+    for (let i = 0; i < Math.min(photos.length, 6); i++) {
+      try {
+        const imgBytes = await fetch(photos[i]).then(r => r.arrayBuffer());
+        const img = await (ctx as any).doc.embedJpg(imgBytes);
+        ctx.page.drawImage(img, { x: fotoX, y: fotoY - ctx.spacing.fotoHeight, width: fotoWidth, height: ctx.spacing.fotoHeight });
+      } catch (e) {}
+      fotoX += fotoWidth + 10;
+      if ((i + 1) % fotosPorFila === 0) { fotoX = ctx.marginLeft + 10; fotoY -= ctx.spacing.fotoHeight + ctx.spacing.small; }
+    }
+  }
+
+  ctx.cursorY = y2 - alturaFotos - totalHeight - ctx.spacing.padding + ctx.spacing.box + alturaFotos;
   return totalHeight;
 }
 
-function drawGeoLocation(ctx: PdfContext, geo: any): void {
-  const lat = geo.lat.toFixed(6);
-  const lng = geo.lng.toFixed(6);
-  const precision = geo.precision ? ` +/-${Math.round(geo.precision)}m` : '';
-  const geoText = `[GPS] Ubicacion: Lat: ${lat}  Lng: ${lng}${precision}`;
-  const mapsUrl = `https://www.google.com/maps?q=${geo.lat},${geo.lng}`;
-  const linkText = `Ver en Google Maps: ${mapsUrl}`;
-
-  ensureSpace(ctx, ctx.spacing.section * 2 + ctx.spacing.small);
-
-  drawColoredBox(ctx, ctx.spacing.section, ctx.colors.geoBg, geoText, 8, ctx.colors.principal);
-
-  ctx.page.drawText(linkText, {
-    x: ctx.marginLeft,
-    y: ctx.cursorY,
-    size: 7,
-    font: ctx.font,
-    color: ctx.colors.principal,
-  });
-  ctx.cursorY -= ctx.spacing.section;
+function drawLinkAnnotation(ctx: PdfContext, x: number, y: number, width: number, height: number, url: string): void {
+  const doc = (ctx as any).doc;
+  const linkAnnotation = doc.context.register(doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [x, y, x + width, y + height], Border: [0, 0, 0], C: [0, 0, 0], A: { Type: 'Action', S: 'URI', URI: PDFString.of(url) } }));
+  const existingAnnots = ctx.page.node.Annots();
+  if (existingAnnots) { existingAnnots.push(linkAnnotation); } else { ctx.page.node.set(PDFName.of('Annots'), doc.context.obj([linkAnnotation])); }
 }
 
-// ============================================================
-// OBSERVACIONES - CORREGIDO CON TOPOFFSET
-// ============================================================
+function drawGeoLocation(ctx: PdfContext, geo: any): void {
+  const lat = geo.lat.toFixed(6), lng = geo.lng.toFixed(6), precision = geo.precision ? ` +/-${Math.round(geo.precision)}m` : '';
+  const geoText = `[GPS] Ubicacion: Lat: ${lat}  Lng: ${lng}${precision}`;
+  const mapsUrl = `https://www.google.com/maps?q=${geo.lat},${geo.lng}`;
+  const linkText = 'Ver ubicacion en Google Maps >';
+  const linkFontSize = 8, linkHeight = ctx.spacing.section;
+  ensureSpace(ctx, ctx.spacing.section + linkHeight + ctx.spacing.padding);
+  drawColoredBox(ctx, ctx.spacing.section, ctx.colors.geoBg, geoText, 8, ctx.colors.principal);
+  const linkBoxY = ctx.cursorY - linkHeight;
+  ctx.page.drawRectangle({ x: ctx.marginLeft, y: linkBoxY, width: ctx.contentWidth, height: linkHeight, color: ctx.colors.geoBg });
+  ctx.page.drawText(linkText, { x: ctx.marginLeft + 5, y: ctx.cursorY - linkHeight + 5, size: linkFontSize, font: ctx.boldFont, color: ctx.colors.principal });
+  drawLinkAnnotation(ctx, ctx.marginLeft, linkBoxY, ctx.contentWidth, linkHeight, mapsUrl);
+  ctx.cursorY -= linkHeight + ctx.spacing.padding;
+}
 
 function drawObservations(ctx: PdfContext, observaciones: string): void {
   const obsText = normalizarTexto(observaciones);
   const lines = splitTextToSize(obsText, ctx.font, 9, ctx.contentWidth - 10);
-
-  // ✅ topOffset = distancia entre el techo de la caja y la BASELINE del primer renglón
-  const topOffset = 12;
-  const bottomPadding = 8;
-  const alturaObs = topOffset + (lines.length - 1) * ctx.spacing.lineHeight + bottomPadding;
-
+  const topOffset = 12, bottomPadding = 8, alturaObs = topOffset + (lines.length - 1) * ctx.spacing.lineHeight + bottomPadding;
   ensureSpace(ctx, alturaObs + ctx.spacing.section);
-
-  ctx.page.drawText('OBSERVACIONES GENERALES', {
-    x: ctx.marginLeft,
-    y: ctx.cursorY,
-    size: 12,
-    font: ctx.boldFont,
-    color: ctx.colors.secundario,
-  });
+  ctx.page.drawText('OBSERVACIONES GENERALES', { x: ctx.marginLeft, y: ctx.cursorY, size: 12, font: ctx.boldFont, color: ctx.colors.secundario });
   ctx.cursorY -= ctx.spacing.section;
-
   const boxTop = ctx.cursorY;
-  ctx.page.drawRectangle({
-    x: ctx.marginLeft,
-    y: boxTop - alturaObs,
-    width: ctx.contentWidth,
-    height: alturaObs,
-    color: ctx.colors.comentarioBg,
-    borderColor: ctx.colors.separador,
-    borderWidth: 0.5,
-  });
-
+  ctx.page.drawRectangle({ x: ctx.marginLeft, y: boxTop - alturaObs, width: ctx.contentWidth, height: alturaObs, color: ctx.colors.comentarioBg, borderColor: ctx.colors.separador, borderWidth: 0.5 });
   ctx.cursorY = boxTop - topOffset;
   drawParagraph(ctx, lines, ctx.marginLeft + 5, 9, ctx.colors.comentarioTexto);
-
   ctx.cursorY = boxTop - alturaObs - ctx.spacing.padding;
 }
 
@@ -457,10 +343,7 @@ function drawSystematicFindings(ctx: PdfContext, desvios: string[]): void {
   ensureSpace(ctx, alturaDesvios);
   ctx.page.drawText('DESVIOS SISTEMATICOS DETECTADOS:', { x: ctx.marginLeft, y: ctx.cursorY, size: 10, font: ctx.boldFont, color: ctx.colors.noCumple });
   ctx.cursorY -= ctx.spacing.section;
-  for (const desvio of desvios) {
-    ctx.page.drawText(`- ${normalizarTexto(desvio)}`, { x: ctx.marginLeft + 6, y: ctx.cursorY, size: 8, font: ctx.font, color: ctx.colors.noCumple });
-    ctx.cursorY -= ctx.spacing.section;
-  }
+  for (const desvio of desvios) { ctx.page.drawText(`- ${normalizarTexto(desvio)}`, { x: ctx.marginLeft + 6, y: ctx.cursorY, size: 8, font: ctx.font, color: ctx.colors.noCumple }); ctx.cursorY -= ctx.spacing.section; }
   ctx.cursorY -= ctx.spacing.padding;
 }
 
@@ -470,59 +353,26 @@ function drawSystematicFindings(ctx: PdfContext, desvios: string[]): void {
 
 export async function generarPDF(audit: AuditRecord): Promise<void> {
   try {
-    console.log('PDF: Generando...');
-
     const doc = await PDFDocument.create();
-    const pageWidth = 595.28;
-    const pageHeight = 841.89;
-    const marginLeft = 50;
-    const marginRight = 50;
-    const marginBottom = 50;
-
+    const pageWidth = 595.28, pageHeight = 841.89, marginLeft = 50, marginRight = 50, marginBottom = 50;
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
-
     const esChecklist = audit.tipoCuestionario === 'checklist';
-    const fecha = audit.completedAt?.seconds
-      ? new Date(audit.completedAt.seconds * 1000).toLocaleDateString('es-AR')
-      : new Date().toLocaleDateString('es-AR');
-
-    const resultado = esChecklist
-      ? calcularScoreChecklist(audit.responses)
-      : calcularScore(audit.responses);
-
-    const clasificacion = esChecklist
-      ? clasificarRiesgoChecklist(resultado.score, resultado.criticosNC)
-      : clasificarRiesgo(resultado.score, resultado.criticosNC);
-
+    const fecha = audit.completedAt?.seconds ? new Date(audit.completedAt.seconds * 1000).toLocaleDateString('es-AR') : new Date().toLocaleDateString('es-AR');
+    const resultado = esChecklist ? calcularScoreChecklist(audit.responses) : calcularScore(audit.responses);
+    const clasificacion = esChecklist ? clasificarRiesgoChecklist(resultado.score, resultado.criticosNC) : clasificarRiesgo(resultado.score, resultado.criticosNC);
     const clasifLabel = normalizarTexto(getClasificacionLabel(clasificacion));
     const conclusion = normalizarTexto(generarConclusion(resultado.score, resultado.criticosNC, clasificacion));
     const responsesFiltradas = audit.responses.filter((r) => r.questionText && r.questionText.trim().length > 0);
-    const colors = createColors();
-    const spacing = createSpacing();
+    const colors = createColors(), spacing = createSpacing();
 
-    let page = doc.addPage([pageWidth, pageHeight]);
-    let cursorY = pageHeight - 85;
-    let pageNumber = 1;
+    let page = doc.addPage([pageWidth, pageHeight]), cursorY = pageHeight - 85, pageNumber = 1;
+    const ctx: PdfContext = { page, cursorY, pageNumber, pageWidth, pageHeight, marginLeft, marginRight, marginBottom, contentWidth: pageWidth - marginLeft - marginRight, font, boldFont, spacing, colors } as any;
+    (ctx as any).doc = doc; (ctx as any).esChecklist = esChecklist; (ctx as any).fecha = fecha; (ctx as any).audit = audit;
+    (ctx as any).newPage = (titulo?: string) => newPage(ctx, titulo); (ctx as any).ensureSpace = (h: number) => ensureSpace(ctx, h);
 
-    const ctx: PdfContext = {
-      page, cursorY, pageNumber, pageWidth, pageHeight,
-      marginLeft, marginRight, marginBottom,
-      contentWidth: pageWidth - marginLeft - marginRight,
-      font, boldFont,
-      spacing, colors,
-    } as any;
-
-    (ctx as any).doc = doc;
-    (ctx as any).esChecklist = esChecklist;
-    (ctx as any).fecha = fecha;
-    (ctx as any).audit = audit;
-    (ctx as any).newPage = (titulo?: string) => newPage(ctx, titulo);
-    (ctx as any).ensureSpace = (h: number) => ensureSpace(ctx, h);
-
-    drawHeader(ctx);
+    await drawHeader(ctx);
     drawFooter(ctx);
-
     drawSectionTitle(ctx, 'DATOS DEL CONTROL');
     const datos: [string, string][] = [
       ['Establecimiento:', audit.establecimiento || audit.siteName || 'No especificado'],
@@ -535,39 +385,22 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     if (audit.sectorName) datos.push(['Sector auditado:', audit.sectorName]);
     for (const [label, value] of datos) drawInfoRow(ctx, label, value);
     ctx.cursorY -= spacing.padding;
-
     if (audit.geolocalizacion) drawGeoLocation(ctx, audit.geolocalizacion);
-
     if (audit.observacionesGenerales?.trim()) drawObservations(ctx, audit.observacionesGenerales);
-
     ctx.cursorY -= spacing.padding;
     drawSectionTitle(ctx, 'RESULTADO DE LA EVALUACION');
-    ctx.page.drawText(`${esChecklist ? 'Cumplimiento:' : 'Score:'} ${resultado.score}%`, {
-      x: ctx.marginLeft, y: ctx.cursorY, size: 11, font: boldFont, color: colors.principal,
-    });
+    ctx.page.drawText(`${esChecklist ? 'Cumplimiento:' : 'Score:'} ${resultado.score}%`, { x: ctx.marginLeft, y: ctx.cursorY, size: 11, font: boldFont, color: colors.principal });
     ctx.cursorY -= spacing.section;
     drawProgressBar(ctx, resultado.score);
     drawResultBox(ctx, clasifLabel, clasificacion);
-
     const resumenData = esChecklist
-      ? [
-          { label: 'Items que Cumplen', value: resultado.totalCumplen, color: colors.cumple },
-          { label: 'Items que No Cumplen', value: resultado.totalNoCumplen, color: colors.noCumple },
-          { label: 'Criticos en No Cumplimiento', value: resultado.criticosNC, color: colors.riesgoAlto },
-        ]
-      : [
-          { label: 'Cumplen (C)', value: resultado.totalCumplen, color: colors.cumple },
-          { label: 'Cumplen Parcialmente (CP)', value: resultado.totalCumplenParcial, color: colors.parcial },
-          { label: 'No Cumplen (NC)', value: resultado.totalNoCumplen, color: colors.noCumple },
-          { label: 'No Aplica (NA)', value: resultado.totalNoAplica, color: colors.noAplica },
-          { label: 'Criticos en No Cumplimiento', value: resultado.criticosNC, color: colors.riesgoAlto },
-        ];
+      ? [{ label: 'Items que Cumplen', value: resultado.totalCumplen, color: colors.cumple }, { label: 'Items que No Cumplen', value: resultado.totalNoCumplen, color: colors.noCumple }, { label: 'Criticos en No Cumplimiento', value: resultado.criticosNC, color: colors.riesgoAlto }]
+      : [{ label: 'Cumplen (C)', value: resultado.totalCumplen, color: colors.cumple }, { label: 'Cumplen Parcialmente (CP)', value: resultado.totalCumplenParcial, color: colors.parcial }, { label: 'No Cumplen (NC)', value: resultado.totalNoCumplen, color: colors.noCumple }, { label: 'No Aplica (NA)', value: resultado.totalNoAplica, color: colors.noAplica }, { label: 'Criticos en No Cumplimiento', value: resultado.criticosNC, color: colors.riesgoAlto }];
     ensureSpace(ctx, resumenData.length * spacing.section + spacing.section + spacing.padding);
     ctx.page.drawText('RESUMEN CUANTITATIVO', { x: ctx.marginLeft, y: ctx.cursorY, size: 12, font: boldFont, color: colors.secundario });
     ctx.cursorY -= spacing.section;
     for (const item of resumenData) drawSummaryItem(ctx, item.label, item.value, item.color);
     ctx.cursorY -= spacing.padding;
-
     const conclusionLines = splitTextToSize(conclusion, font, 9, ctx.contentWidth - 10);
     const alturaConclusion = conclusionLines.length * spacing.lineHeight + spacing.section + spacing.padding;
     ensureSpace(ctx, alturaConclusion);
@@ -575,28 +408,18 @@ export async function generarPDF(audit: AuditRecord): Promise<void> {
     ctx.cursorY -= spacing.section;
     drawParagraph(ctx, conclusionLines, ctx.marginLeft + 5, 9, colors.comentarioTexto);
     ctx.cursorY -= spacing.padding;
-
-    if (audit.recurrenciaDetectada && audit.desviosSistematicos.length > 0) {
-      drawSystematicFindings(ctx, audit.desviosSistematicos);
-    }
-
+    if (audit.recurrenciaDetectada && audit.desviosSistematicos.length > 0) drawSystematicFindings(ctx, audit.desviosSistematicos);
     ctx.cursorY -= spacing.padding;
     drawSectionTitle(ctx, 'DETALLE DE PREGUNTAS');
-    for (let i = 0; i < responsesFiltradas.length; i++) {
-      drawQuestionBlock(ctx, responsesFiltradas[i], i, audit.norma);
-    }
+    for (let i = 0; i < responsesFiltradas.length; i++) { await drawQuestionBlock(ctx, responsesFiltradas[i], i, audit.norma); }
 
     const pdfBytes = await doc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const fileName = `${esChecklist ? 'Checklist' : 'Auditoria'}_${(audit.siteName || 'sitio').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    link.download = `${esChecklist ? 'Checklist' : 'Auditoria'}_${(audit.siteName || 'sitio').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
     console.log('PDF: Generado correctamente');
   } catch (error) {
     console.error('PDF: Error:', error);

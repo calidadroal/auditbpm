@@ -8,8 +8,6 @@ import {
   query,
   onSnapshot,
   orderBy,
-  doc,
-  getDoc,
 } from 'firebase/firestore';
 import { Site, QuestionnaireConfig, AuditRecord } from '../types';
 
@@ -62,6 +60,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isAuditor = user?.role === 'auditor';
   const isGestor = user?.role === 'gestor';
   const isLector = user?.role === 'lector';
+  const isTrial = (user as any)?.isTrial === true || (user as any)?.plan === 'trial';
 
   const canGestionarUsuarios = tienePermiso(user, 'gestionar_usuarios');
   const canModificarPermisos = tienePermiso(user, 'modificar_permisos');
@@ -115,11 +114,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const assignedSites = user.assignedSites || [];
         
         questData = questData.filter((q) => {
+          // Si el cuestionario es solo para trial y el usuario no es trial → ocultar
+          const trialOnly = (q as any).trialOnly === true;
+          if (trialOnly && !isTrial) return false;
+          
           // Si el cuestionario tiene sitioIds, verificar que coincida con los sitios del usuario
           if (q.sitioIds && q.sitioIds.length > 0) {
             return q.sitioIds.some(siteId => assignedSites.includes(siteId));
           }
-          // Si no tiene sitioIds, mostrarlo a todos
+          
+          // Si no tiene sitioIds y no es trialOnly, mostrarlo a todos
           return true;
         });
       }
@@ -127,7 +131,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setQuestionnaires(questData);
     });
     return unsubscribe;
-  }, [user]);
+  }, [user, isTrial]);
 
   // Cargar auditorías
   useEffect(() => {
