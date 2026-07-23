@@ -34,3 +34,5 @@ netlify/functions/
  
 # CRITICO: Configuracion con posibles credenciales 
 src/config/ 
+netlify/functions/** 
+src/config/** 
